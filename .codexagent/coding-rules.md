@@ -19,6 +19,63 @@
 - Prefer immutability by default (especially in TS/React state). Use mutation only when it is clearly simpler or measurably needed.
 - Tech debt is allowed only when it buys speed: isolate it and tag it with `TechDebt:` plus context.
 
+## Demo-first rule
+
+- Optimize for a compelling live demo under time pressure.
+- Prefer visible product value over invisible engineering polish.
+- If forced to choose, prioritize:
+  1. demo reliability
+  2. clear user-facing value
+  3. technical impressiveness
+  4. internal polish
+
+## Real web constraint
+
+- Prefer real website flows and live data over mocks whenever feasible.
+- Mock only when a third-party dependency is blocking the demo.
+- If mocking is used, isolate it clearly and tag with `TechDebt: demo mock`.
+- Preserve at least one believable end-to-end live path for judging.
+
+## Judge-facing UX
+
+- The main user flow must be understandable within 30 seconds.
+- Show progress clearly: input, running state, result, sources, and failure state.
+- Prefer fewer steps and fewer controls.
+- Avoid exposing internal complexity unless it increases the wow factor.
+
+## Trust & traceability
+
+- Agent outputs should include enough evidence to be trusted.
+- Whenever possible, return sources, extracted artifacts, or intermediate reasoning summaries.
+- Do not present uncertain or partial results as definitive.
+- Surface recoverable failures clearly and keep partial output when useful.
+
+## Time-boxing
+
+- Prefer the fastest reliable implementation that can be finished today.
+- Avoid building generic systems, plugin architectures, or future-proof abstractions.
+- If a feature cannot be made demo-ready quickly, cut scope instead of half-finishing it.
+
+## Submission readiness
+
+- Keep the repo runnable by judges with minimal setup.
+- Update README only when it materially helps setup, demo, or architecture understanding.
+- Track assumptions, env vars, and demo steps as they are introduced.
+- Do not leave critical setup knowledge only in chat context.
+
+## Agent architecture preference
+
+- TinyFish is the browsing/extraction execution layer.
+- OpenAI is the planning, reasoning, and summarization layer.
+- Keep this separation clear in code and API responses.
+- Avoid mixing provider-specific logic throughout the codebase; use small adapters.
+
+## Anti-overengineering default
+
+- Do not build infra-heavy systems unless the complexity itself is the product.
+- Prefer one strong workflow over many half-working agent modes.
+- New moving parts must justify themselves in demo value.
+
 ## Design & architecture (keep minimal, but clear)
 
 - Single responsibility: each module/function should have one job.

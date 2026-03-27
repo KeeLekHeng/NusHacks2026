@@ -16,6 +16,11 @@ Priority order:
 3. Stable API contracts
 4. Simple, impressive agent flow
 
+Judging context:
+- Project should showcase autonomous web browsing/extraction on live sites.
+- Judges will likely reward real-time usefulness, technical ambition, and handling of messy web data.
+- The product should feel credible, fast to understand, and impressive in a short live demo.
+
 Do not add unless explicitly requested:
 - Auth
 - Databases
