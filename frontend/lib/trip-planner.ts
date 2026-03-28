@@ -122,7 +122,7 @@ export type AccommodationSearchOption = {
 };
 
 export type AccommodationSearchResult = {
-  mode: "backend" | "mock";
+  mode: "backend" | "mock" | "fallback";
   day_number: number;
   reuse_flag: boolean;
   reuse_option?: AccommodationReuseOption | null;
@@ -140,7 +140,7 @@ export type AccommodationNightGroup = {
   task: AccommodationSearchTask;
   options: AccommodationSearchOption[];
   reuseOption?: AccommodationReuseOption | null;
-  source: "backend" | "mock";
+  source: "backend" | "mock" | "fallback";
   status: "loading" | "ready" | "error";
   error?: string | null;
 };

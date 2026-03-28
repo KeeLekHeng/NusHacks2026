@@ -99,19 +99,7 @@ export async function generateTravelPlan(userInput: string): Promise<TravelPlanR
   const optimisticParsedTrip = buildOptimisticParsedTrip(trimmedInput);
 
   try {
-    const [parsedTrip, optimisticItinerary] = await Promise.all([
-      parseTrip({ user_input: trimmedInput }).catch(() => null),
-      generateItinerary({ parsed_trip: optimisticParsedTrip }).catch(() => null)
-    ]);
-
-    if (parsedTrip && optimisticItinerary) {
-      return {
-        source: "backend",
-        parsedTrip,
-        itinerary: optimisticItinerary
-      };
-    }
-
+    const parsedTrip = await parseTrip({ user_input: trimmedInput }).catch(() => null);
     if (parsedTrip) {
       const itinerary = await generateItinerary({ parsed_trip: parsedTrip });
       return {
@@ -120,6 +108,10 @@ export async function generateTravelPlan(userInput: string): Promise<TravelPlanR
         itinerary
       };
     }
+
+    const optimisticItinerary = await generateItinerary({
+      parsed_trip: optimisticParsedTrip
+    }).catch(() => null);
 
     if (optimisticItinerary) {
       return {
@@ -215,7 +207,12 @@ export async function searchAccommodationForNight(
     };
 
     return {
-      mode: payload.mode === "mock" ? "mock" : "backend",
+      mode:
+        payload.mode === "mock"
+          ? "mock"
+          : payload.mode === "fallback"
+            ? "fallback"
+            : "backend",
       day_number: payload.day_number,
       reuse_flag: payload.reuse_flag,
       reuse_option: payload.reuse_option ?? null,
