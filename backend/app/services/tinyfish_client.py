@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 import json
+import random
 import re
 import time
 from typing import Any
@@ -400,11 +401,10 @@ def _dedupe_accommodation_options(options: Iterable[dict[str, Any]]) -> list[dic
 def _build_mock_accommodation_options(search_request: dict[str, Any]) -> list[dict[str, Any]]:
     city = search_request.get("city") or "Target city"
     target_area = search_request.get("target_area") or "Central area"
-    nightly_budget = search_request.get("nightly_budget")
-    budget_anchor = int(nightly_budget) if isinstance(nightly_budget, (int, float)) else 110
     traveler_count = search_request.get("traveler_count") or 2
     room_requirements = search_request.get("room_requirements") or []
     amenity_requirements = search_request.get("amenity_requirements") or []
+    mock_prices = [float(random.randint(45, 99)) for _ in range(3)]
 
     amenity_seed = [str(item) for item in amenity_requirements[:3]]
     if "wifi" not in amenity_seed:
@@ -415,8 +415,8 @@ def _build_mock_accommodation_options(search_request: dict[str, Any]) -> list[di
             "property_name": f"{city} Atelier Loft",
             "platform": "Airbnb",
             "room_type": "Entire studio",
-            "nightly_price": float(max(budget_anchor - 8, 55)),
-            "total_price": float(max((budget_anchor - 8) * 1.18, 65)),
+            "nightly_price": mock_prices[0],
+            "total_price": mock_prices[0],
             "rating": 4.9,
             "review_count": 128,
             "location_summary": f"Stylish stay in {target_area} with easy evening access and a quieter feel.",
@@ -430,8 +430,8 @@ def _build_mock_accommodation_options(search_request: dict[str, Any]) -> list[di
             "property_name": f"{city} Central Suites",
             "platform": "Trip.com",
             "room_type": "Deluxe double room",
-            "nightly_price": float(max(budget_anchor - 16, 49)),
-            "total_price": float(max((budget_anchor - 16) * 1.16, 59)),
+            "nightly_price": mock_prices[1],
+            "total_price": mock_prices[1],
             "rating": 4.6,
             "review_count": 684,
             "location_summary": f"Practical hotel base near {target_area} for short transfers and easy mornings.",
@@ -445,8 +445,8 @@ def _build_mock_accommodation_options(search_request: dict[str, Any]) -> list[di
             "property_name": f"{city} Residence House",
             "platform": "Airbnb",
             "room_type": "Private apartment",
-            "nightly_price": float(max(budget_anchor + 6, 62)),
-            "total_price": float(max((budget_anchor + 6) * 1.2, 75)),
+            "nightly_price": mock_prices[2],
+            "total_price": mock_prices[2],
             "rating": 4.8,
             "review_count": 211,
             "location_summary": f"Relaxed apartment stay close to {target_area} with more breathing room.",
