@@ -8,10 +8,6 @@ import {
   CardBody,
   CardHeader,
   Chip,
-  CircularProgress,
-  Divider,
-  Input,
-  Snippet,
   Table,
   TableBody,
   TableCell,
@@ -27,16 +23,14 @@ import {
   type GeneratedExpenseDay,
   type GeneratedItineraryDay,
   type ItineraryConversationMessage,
-  type ParsedTripData,
   type TravelPlanResult
 } from "../../lib/trip-planner";
 
 const initialPrompt =
-  "I want to go to Ho Chi Minh + Da Lat for 4 days 3 nights. I definitely won't miss The Cafe Apartments in Ho Chi Minh City and budget within 1000 dollars.";
+  "I want to go to Ho Chi Minh + Da Lat for 4 days 3 nights with a budget of 1000 USD and I must visit The Cafe Apartments.";
 
 export default function ItineraryPage() {
-  const [prompt, setPrompt] = useState(initialPrompt);
-  const [refinementInput, setRefinementInput] = useState("");
+  const [composerInput, setComposerInput] = useState(initialPrompt);
   const [isExpensesOpen, setIsExpensesOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -44,11 +38,8 @@ export default function ItineraryPage() {
   const [result, setResult] = useState<TravelPlanResult | null>(null);
   const [conversation, setConversation] = useState<ItineraryConversationMessage[]>([]);
 
-  const expenseGroups = useMemo(
-    () => result?.itinerary.estimated_expenses ?? [],
-    [result]
-  );
-
+  const itineraryDays = result?.itinerary.itinerary_days ?? [];
+  const expenseGroups = useMemo(() => result?.itinerary.estimated_expenses ?? [], [result]);
   const runningTotal = useMemo(
     () =>
       expenseGroups.reduce(
@@ -58,19 +49,26 @@ export default function ItineraryPage() {
       ),
     [expenseGroups]
   );
+  const isPlanning = isGenerating || isRefining;
 
-  async function handleGenerate() {
+  useEffect(() => {
+    if (result) {
+      saveTravelPlanToSession(result);
+    }
+  }, [result]);
+
+  async function handleGenerate(input: string) {
     setIsGenerating(true);
     setError(null);
 
     try {
-      const nextResult = await generateTravelPlan(prompt);
+      const nextResult = await generateTravelPlan(input);
       setResult(nextResult);
       setConversation([
         {
           id: "initial-user",
           role: "user",
-          message: prompt.trim()
+          message: input.trim()
         },
         {
           id: "initial-assistant",
@@ -78,7 +76,6 @@ export default function ItineraryPage() {
           message: nextResult.itinerary.trip_summary
         }
       ]);
-      setRefinementInput("");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to generate itinerary.");
     } finally {
@@ -86,15 +83,15 @@ export default function ItineraryPage() {
     }
   }
 
-  async function handleRefine() {
+  async function handleRefine(input: string) {
     if (!result) {
-      setError("Generate an itinerary before sending refinements.");
+      setError("Generate an itinerary before applying refinements.");
       return;
     }
 
-    const trimmedRefinement = refinementInput.trim();
+    const trimmedRefinement = input.trim();
     if (!trimmedRefinement) {
-      setError("Enter a follow-up refinement request.");
+      setError("Enter a refinement request.");
       return;
     }
 
@@ -131,7 +128,6 @@ export default function ItineraryPage() {
             "Updated the itinerary and expense estimates based on your latest change."
         }
       ]);
-      setRefinementInput("");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to refine itinerary.");
     } finally {
@@ -139,231 +135,224 @@ export default function ItineraryPage() {
     }
   }
 
-  const parsedTrip = result?.parsedTrip;
-  const itineraryDays = result?.itinerary.itinerary_days ?? [];
-  const budgetSummary = result?.itinerary.budget_summary;
+  async function handleComposerSubmit() {
+    const trimmedInput = composerInput.trim();
 
-  useEffect(() => {
-    if (result) {
-      saveTravelPlanToSession(result);
+    if (!trimmedInput) {
+      setError(result ? "Enter a refinement request." : "Enter a trip request.");
+      return;
     }
-  }, [result]);
+
+    setComposerInput("");
+
+    if (result) {
+      await handleRefine(trimmedInput);
+      return;
+    }
+
+    await handleGenerate(trimmedInput);
+  }
 
   return (
-    <main className="min-h-screen bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-6 md:px-6 xl:px-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+    <main className="h-screen overflow-hidden bg-[#f4f7fb]">
+      <div className="mx-auto flex h-full max-w-[1600px] flex-col gap-5 px-4 py-5 md:px-6 xl:px-8">
+        <header className="soft-panel flex shrink-0 flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">
-              Travel Planning Workspace
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">
+              Build Your Trip
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Build and refine the itinerary before choosing stays
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-900 xl:text-[2.8rem]">
+              Shape the itinerary, then refine it live
             </h1>
-            <p className="max-w-3xl text-sm leading-6 text-slate-500">
-              Page 1 keeps the itinerary preview as the primary artifact, while follow-up edits
-              update the plan and the estimated expenses in place.
+            <p className="max-w-3xl text-base leading-7 text-slate-500">
+              Generate a structured trip plan, keep the itinerary visible, and refine it without
+              losing the main canvas.
             </p>
           </div>
           <Stepper />
         </header>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="space-y-6">
-            <Card className="border border-blue-100 bg-white shadow-sm">
-              <CardHeader className="flex flex-col items-start gap-2 px-6 pt-6">
-                <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Natural language request</p>
-                    <p className="text-sm text-slate-500">
-                      Initial submit calls the parser and itinerary generator in sequence.
-                    </p>
-                  </div>
-                  <Chip
-                    className="border border-blue-100 bg-blue-50 text-blue-700"
-                    variant="flat"
-                  >
-                    {result == null
-                      ? "Ready to generate"
-                      : result.source === "mock"
-                        ? "Mock fallback active"
-                        : "Backend response loaded"}
-                  </Chip>
-                </div>
-              </CardHeader>
-              <CardBody className="gap-4 px-6 pb-6">
-                <Textarea
-                  minRows={6}
-                  value={prompt}
-                  onValueChange={setPrompt}
-                  variant="bordered"
-                  label="Trip request"
-                  labelPlacement="outside"
-                  placeholder="Describe destinations, duration, budget, must-visit places, and preferences."
-                  classNames={{
-                    inputWrapper:
-                      "border-slate-200 bg-slate-50 shadow-none data-[hover=true]:border-blue-300 group-data-[focus=true]:border-blue-500",
-                    input: "text-sm text-slate-800"
-                  }}
-                />
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    color="primary"
-                    className="bg-blue-600 font-medium text-white"
-                    isLoading={isGenerating}
-                    onPress={handleGenerate}
-                  >
-                    Generate itinerary
-                  </Button>
-                  {isGenerating && (
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
-                      <CircularProgress aria-label="Generating itinerary" size="sm" />
-                      Parsing trip and building itinerary...
-                    </div>
-                  )}
-                </div>
-                {error && (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    {error}
-                  </div>
-                )}
-                {result?.source === "mock" && !error && (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                    Backend endpoints were unavailable, so the page is showing a graceful mock
-                    response using the same render structure.
-                  </div>
-                )}
-              </CardBody>
-            </Card>
+        {(error || (result?.source === "mock" && !error)) && (
+          <div className="shrink-0 space-y-3">
+            {error && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-base text-rose-700">
+                {error}
+              </div>
+            )}
+            {result?.source === "mock" && !error && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base text-amber-700">
+                Backend endpoints were unavailable, so the planner is using the same UI with mock
+                data.
+              </div>
+            )}
+          </div>
+        )}
 
-            <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-              <RefinementPanel
-                conversation={conversation}
-                refinementInput={refinementInput}
-                setRefinementInput={setRefinementInput}
-                onRefine={handleRefine}
-                isRefining={isRefining}
-                isDisabled={!result}
-              />
-              <ParsedTripCard parsedTrip={parsedTrip} />
-            </div>
-
-            <Card className="border border-blue-100 bg-white shadow-sm">
-              <CardHeader className="flex flex-col items-start gap-2 px-6 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+          <section className="grid min-h-0 gap-5 xl:grid-rows-[minmax(0,1fr)_auto]">
+            <Card
+              className={`soft-panel overflow-hidden ${
+                itineraryDays.length > 0 ? "min-h-0 xl:h-[min(42vh,460px)]" : ""
+              }`}
+            >
+              <CardHeader className="flex shrink-0 items-center justify-between gap-4 px-6 pb-4 pt-6">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Structured itinerary preview</p>
-                  <p className="text-sm text-slate-500">
-                    This remains the main artifact and updates after each refinement.
+                  <p className="text-lg font-semibold text-slate-900">Itinerary</p>
+                  <p className="text-base leading-7 text-slate-500">
+                    The itinerary stays front and center throughout the flow.
                   </p>
                 </div>
-                <Snippet
-                  hideSymbol
-                  variant="flat"
-                  classNames={{
-                    base: "bg-blue-50 text-blue-700"
-                  }}
-                >
-                  {itineraryDays.length} day{itineraryDays.length === 1 ? "" : "s"} planned
-                </Snippet>
+                <Chip className="bg-blue-50 px-4 py-2 text-base text-blue-700" variant="flat">
+                  {itineraryDays.length === 0
+                    ? "Step 1: Generate"
+                    : `Step 2: ${itineraryDays.length} days ready`}
+                </Chip>
               </CardHeader>
-              <CardBody className="gap-4 px-6 pb-6">
+              <CardBody className="relative min-h-0 px-6 pb-6 pt-0">
                 {itineraryDays.length === 0 ? (
-                  <EmptyState message="Generate a trip to see the parsed itinerary preview here." />
+                  <div className="flex min-h-[210px] items-center justify-center rounded-[28px] border border-dashed border-blue-200 bg-[#f8fbff] px-6 py-10 text-center">
+                    <div>
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 px-3 py-3 text-sm font-semibold uppercase tracking-[0.22em] text-blue-600">
+                        Trip
+                      </div>
+                      <h2 className="mt-5 text-3xl font-semibold text-slate-900">No itinerary yet</h2>
+                      <p className="mt-2 text-base leading-7 text-slate-500">
+                        Start by describing your trip below.
+                      </p>
+                    </div>
+                  </div>
                 ) : (
-                  itineraryDays.map((day) => <ItineraryDayCard key={day.day_number} day={day} />)
+                  <div
+                    className={`overflow-y-auto pr-1 transition duration-300 xl:h-full ${
+                      isPlanning ? "opacity-20 blur-[1px]" : "opacity-100"
+                    }`}
+                  >
+                    <div className="space-y-4">
+                      {itineraryDays.map((day) => (
+                        <ItineraryDayCard key={day.day_number} day={day} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isPlanning && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/78 px-6 backdrop-blur-[2px] transition duration-300">
+                    <div className="w-full max-w-xl rounded-[28px] border border-blue-100 bg-white px-6 py-7 shadow-[0_20px_48px_rgba(148,163,184,0.16)]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 px-3 py-3 text-lg text-blue-600">
+                          *
+                        </div>
+                        <div>
+                          <p className="text-xl font-semibold text-slate-900">Planning your trip...</p>
+                          <p className="text-base leading-7 text-slate-500">
+                            {isRefining
+                              ? "Applying your latest itinerary changes."
+                              : "Turning your prompt into a structured travel plan."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-3">
+                        <LoadingStep label="Analyzing destinations" />
+                        <LoadingStep label="Building day-by-day flow" />
+                        <LoadingStep label="Estimating costs" />
+                      </div>
+                    </div>
+                  </div>
                 )}
               </CardBody>
             </Card>
 
-            <Card className="border border-blue-100 bg-white shadow-sm">
-              <CardHeader className="px-6 pt-6">
+            <Card
+              className={`soft-panel shrink-0 overflow-hidden ${
+                result ? "border-emerald-200 bg-[#fbfefd]" : "border-blue-200"
+              }`}
+            >
+              <CardBody className="gap-3 px-5 py-4">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Budget summary</p>
-                  <p className="text-sm text-slate-500">
-                    Rough estimates update alongside each itinerary refinement.
+                  <p className="text-lg font-semibold text-slate-900">
+                    {result ? "Refine itinerary" : "Generate itinerary"}
+                  </p>
+                  <p className="text-base leading-7 text-slate-500">
+                    {result
+                      ? "Send a follow-up change and the itinerary updates above."
+                      : "Describe destination, duration, budget, and must-visit places."}
                   </p>
                 </div>
-              </CardHeader>
-              <CardBody className="grid gap-3 px-6 pb-6 md:grid-cols-4">
-                <SummaryTile
-                  label="Estimated total"
-                  value={budgetSummary ? formatCurrency(budgetSummary.total_estimated_cost) : "-"}
-                />
-                <SummaryTile
-                  label="Budget"
-                  value={
-                    budgetSummary?.total_budget_usd != null
-                      ? formatCurrency(budgetSummary.total_budget_usd)
-                      : "-"
-                  }
-                />
-                <SummaryTile
-                  label="Remaining"
-                  value={
-                    budgetSummary?.remaining_budget_usd != null
-                      ? formatCurrency(budgetSummary.remaining_budget_usd)
-                      : "-"
-                  }
-                />
-                <SummaryTile
-                  label="Status"
-                  value={
-                    budgetSummary?.is_within_budget == null
-                      ? "No budget set"
-                      : budgetSummary.is_within_budget
-                        ? "Within budget"
-                        : "Over budget"
-                  }
-                />
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                  <Textarea
+                    minRows={2}
+                    maxRows={4}
+                    value={composerInput}
+                    onValueChange={setComposerInput}
+                    placeholder={
+                      result
+                        ? "Refine your trip (e.g. make day 2 cheaper, add cafes, slow the pace...)"
+                        : "Describe your trip. Include destination, duration, budget, and must-visit places."
+                    }
+                    variant="bordered"
+                    isDisabled={isGenerating || isRefining}
+                    className="flex-1"
+                    disableAutosize
+                    classNames={{
+                      inputWrapper:
+                        "min-h-[112px] rounded-[24px] border-slate-200 bg-[#f8fbff] px-3 py-2 shadow-none data-[hover=true]:border-blue-300 group-data-[focus=true]:border-blue-500",
+                      input: "px-2 py-2 text-base leading-8 text-slate-800"
+                    }}
+                  />
+                  <Button
+                    className="soft-pill-button min-w-[170px]"
+                    isLoading={isGenerating || isRefining}
+                    onPress={handleComposerSubmit}
+                  >
+                    {result ? "Apply" : "Generate itinerary"}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-end">
+                  <Button as={Link} href="/accommodation" className="soft-pill-button" isDisabled={!result}>
+                    Proceed to stays
+                  </Button>
+                </div>
               </CardBody>
             </Card>
-
-            <div className="flex items-center justify-end">
-              <Button
-                as={Link}
-                href="/accommodation"
-                color="primary"
-                className="bg-blue-600 px-6 text-white"
-                isDisabled={!result}
-              >
-                Proceed to stays
-              </Button>
-            </div>
           </section>
 
-          <aside className="xl:sticky xl:top-6 xl:self-start">
-            <Card className="border border-blue-100 bg-white shadow-sm">
-              <CardHeader className="flex items-center justify-between px-5 pt-5">
+          <aside className="min-h-0">
+            <Card className="soft-panel flex h-full min-h-0 flex-col overflow-hidden">
+              <CardHeader className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3 pt-5">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Estimated expenses</p>
-                  <p className="text-sm text-slate-500">
-                    Grouped by day and refreshed after every itinerary change.
-                  </p>
+                  <p className="text-lg font-semibold text-slate-900">Trip cost</p>
+                  <p className="text-base leading-7 text-slate-500">Grouped by day with a running total.</p>
                 </div>
                 <Button
                   size="sm"
                   variant="light"
-                  className="text-blue-600"
+                  className="soft-pill-toggle text-blue-600"
                   onPress={() => setIsExpensesOpen((current) => !current)}
                 >
                   {isExpensesOpen ? "Collapse" : "Expand"}
                 </Button>
               </CardHeader>
               {isExpensesOpen && (
-                <CardBody className="gap-4 px-5 pb-5">
+                <CardBody className="min-h-0 gap-4 px-5 pb-5 pt-0">
                   {expenseGroups.length === 0 ? (
-                    <EmptyState message="Expense estimates appear here after the first itinerary run." />
+                    <div className="soft-subpanel px-4 py-6 text-center text-base text-slate-500">
+                      No cost data yet
+                    </div>
                   ) : (
-                    expenseGroups.map((group) => (
-                      <ExpenseDayTable key={group.day_number} group={group} />
-                    ))
+                    <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                      <div className="space-y-4">
+                        {expenseGroups.map((group) => (
+                          <ExpenseDayTable key={group.day_number} group={group} />
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  <Divider />
-                  <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="soft-url-panel shrink-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      Running total
+                      Total
                     </p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">
                       {formatCurrency(runningTotal)}
                     </p>
                   </div>
@@ -386,29 +375,24 @@ function Stepper() {
         return (
           <div
             key={route.step}
-            className={`flex items-center gap-3 rounded-full border px-4 py-2 ${
+            className={`flex items-center gap-3 rounded-full border px-4 py-2 shadow-sm ${
               isCurrent ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"
             }`}
           >
             <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+              className={`flex h-8 w-8 items-center justify-center rounded-full px-2 py-2 text-sm font-semibold ${
                 isCurrent ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
               }`}
             >
               {index + 1}
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Step
-              </p>
-              <p className="text-sm font-medium text-slate-900">
-                {route.step === "itinerary"
-                  ? "Itinerary"
-                  : route.step === "accommodation"
-                    ? "Stays"
-                    : "Summary"}
-              </p>
-            </div>
+            <p className="text-base font-medium text-slate-900">
+              {route.step === "itinerary"
+                ? "Itinerary"
+                : route.step === "accommodation"
+                  ? "Stays"
+                  : "Summary"}
+            </p>
           </div>
         );
       })}
@@ -416,197 +400,61 @@ function Stepper() {
   );
 }
 
-function RefinementPanel({
-  conversation,
-  refinementInput,
-  setRefinementInput,
-  onRefine,
-  isRefining,
-  isDisabled
-}: {
-  conversation: ItineraryConversationMessage[];
-  refinementInput: string;
-  setRefinementInput: (value: string) => void;
-  onRefine: () => void;
-  isRefining: boolean;
-  isDisabled: boolean;
-}) {
+function ItineraryDayCard({ day }: { day: GeneratedItineraryDay }) {
   return (
-    <Card className="border border-blue-100 bg-white shadow-sm">
-      <CardHeader className="px-6 pt-6">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Refine itinerary</p>
-          <p className="text-sm text-slate-500">
-            Send focused edits like "Make day 2 cheaper" or "Add more cafes in Ho Chi Minh".
-          </p>
-        </div>
-      </CardHeader>
-      <CardBody className="space-y-4 px-6 pb-6">
-        <div className="space-y-3">
-          {conversation.length === 0 ? (
-            <EmptyState message="The initial planner summary and follow-up edits will appear here after the first generation." />
-          ) : (
-            conversation.map((message) => (
-              <div
-                key={message.id}
-                className={`rounded-2xl border p-4 ${
-                  message.role === "assistant"
-                    ? "border-blue-100 bg-blue-50"
-                    : "border-slate-200 bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {message.role === "assistant" ? "Planner" : "You"}
-                  </p>
-                  <Chip
-                    size="sm"
-                    variant="flat"
-                    className={
-                      message.role === "assistant"
-                        ? "bg-white text-blue-700"
-                        : "bg-white text-slate-700"
-                    }
-                  >
-                    {message.role}
-                  </Chip>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{message.message}</p>
-              </div>
-            ))
+    <article className="soft-subpanel p-5 shadow-sm">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <Chip className="bg-blue-600 px-3 py-1.5 text-base text-white" size="sm">
+              Day {day.day_number}
+            </Chip>
+            <p className="text-base font-medium text-slate-500">{day.city}</p>
+            {day.start_area && (
+              <span className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-500 shadow-sm">
+                {day.start_area}
+              </span>
+            )}
+          </div>
+          <h2 className="mt-4 text-3xl font-semibold text-slate-900">{day.title}</h2>
+          {day.end_area && (
+            <p className="mt-2 text-base leading-7 text-slate-500">Ends near {day.end_area}</p>
           )}
         </div>
 
-        <Divider />
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Input
-            value={refinementInput}
-            onValueChange={setRefinementInput}
-            placeholder="Make day 2 cheaper, add more cafes, or slow the pace."
-            variant="bordered"
-            isDisabled={isDisabled || isRefining}
-            className="flex-1"
-            classNames={{
-              inputWrapper:
-                "border-slate-200 bg-slate-50 shadow-none data-[hover=true]:border-blue-300 group-data-[focus=true]:border-blue-500"
-            }}
-          />
-          <Button
-            color="primary"
-            className="bg-blue-600 text-white"
-            isDisabled={isDisabled}
-            isLoading={isRefining}
-            onPress={onRefine}
-          >
-            Apply change
-          </Button>
-        </div>
-      </CardBody>
-    </Card>
-  );
-}
-
-function ParsedTripCard({ parsedTrip }: { parsedTrip: ParsedTripData | null | undefined }) {
-  return (
-    <Card className="border border-blue-100 bg-white shadow-sm">
-      <CardHeader className="px-6 pt-6">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Parsed trip summary</p>
-          <p className="text-sm text-slate-500">
-            Structured fields extracted from the backend parser response.
-          </p>
-        </div>
-      </CardHeader>
-      <CardBody className="gap-4 px-6 pb-6">
-        {!parsedTrip ? (
-          <EmptyState message="Generate a trip to inspect the parsed request fields." />
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <SummaryTile label="Destinations" value={parsedTrip.destinations.join(", ") || "-"} />
-              <SummaryTile
-                label="Duration"
-                value={formatDuration(parsedTrip.duration_days, parsedTrip.duration_nights)}
-              />
-              <SummaryTile
-                label="Budget"
-                value={
-                  parsedTrip.total_budget_usd != null
-                    ? formatCurrency(parsedTrip.total_budget_usd)
-                    : "-"
-                }
-              />
-              <SummaryTile
-                label="Travelers"
-                value={parsedTrip.traveler_count != null ? String(parsedTrip.traveler_count) : "-"}
-              />
-              <SummaryTile label="Departure city" value={parsedTrip.departure_city ?? "-"} />
-              <SummaryTile label="Accommodation" value={parsedTrip.accommodation_type ?? "-"} />
-            </div>
-            <Divider />
-            <TagSection label="Must visit" values={parsedTrip.must_visit} />
-            <TagSection label="Extra preferences" values={parsedTrip.extra_preferences} />
-            <TagSection label="Missing fields" values={parsedTrip.missing_fields} tone="muted" />
-          </>
-        )}
-      </CardBody>
-    </Card>
-  );
-}
-
-function ItineraryDayCard({ day }: { day: GeneratedItineraryDay }) {
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Chip className="bg-blue-600 text-white" size="sm">
-              Day {day.day_number}
-            </Chip>
-            <p className="text-sm font-medium text-slate-500">{day.city}</p>
-          </div>
-          <h3 className="mt-3 text-xl font-semibold text-slate-900">{day.title}</h3>
-          <p className="mt-2 text-sm text-slate-500">
-            {day.start_area ?? "-"} to {day.end_area ?? "-"}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+        <div className="soft-panel min-w-[150px] px-4 py-3 shadow-none">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Daily budget
+            Estimated cost
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">
+          <p className="mt-2 text-2xl font-semibold text-slate-900">
             {formatCurrency(day.estimated_day_cost)}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-5 space-y-3">
         {day.activities.map((activity, index) => (
           <div
             key={`${activity.label}-${index}`}
-            className="rounded-2xl border border-white bg-white p-4 shadow-sm"
+            className="rounded-[22px] border border-white bg-white px-4 py-3 shadow-sm"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{activity.label}</p>
-                  <Chip size="sm" variant="flat" className="bg-slate-100 text-slate-700">
+                  <p className="text-lg font-semibold text-slate-900">{activity.label}</p>
+                  <Chip size="sm" variant="flat" className="bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
                     {activity.category}
                   </Chip>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {activity.notes ?? "No additional notes for this activity."}
-                </p>
+                {activity.notes && (
+                  <p className="mt-2 text-base leading-7 text-slate-600">{activity.notes}</p>
+                )}
               </div>
-              <div className="min-w-[150px] rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                <p>
-                  {activity.start_area ?? "-"} to {activity.end_area ?? "-"}
+              {activity.estimated_cost != null && (
+                <p className="shrink-0 text-lg font-semibold text-slate-900">
+                  {formatCurrency(activity.estimated_cost)}
                 </p>
-                <p className="mt-1 font-medium text-slate-900">
-                  {activity.estimated_cost != null ? formatCurrency(activity.estimated_cost) : "-"}
-                </p>
-              </div>
+              )}
             </div>
           </div>
         ))}
@@ -616,17 +464,18 @@ function ItineraryDayCard({ day }: { day: GeneratedItineraryDay }) {
 }
 
 function ExpenseDayTable({ group }: { group: GeneratedExpenseDay }) {
+  const dayTotal = group.items.reduce((total, item) => total + item.estimated_cost, 0);
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="soft-subpanel p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Day {group.day_number}</p>
-          <p className="text-xs text-slate-500">{group.city}</p>
+          <p className="text-base font-semibold text-slate-900">Day {group.day_number}</p>
+          <p className="text-sm text-slate-500">{group.city}</p>
         </div>
-        <p className="text-sm text-slate-500">
-          {formatCurrency(group.items.reduce((total, item) => total + item.estimated_cost, 0))}
-        </p>
+        <p className="text-base font-semibold text-slate-900">{formatCurrency(dayTotal)}</p>
       </div>
+
       <Table
         removeWrapper
         aria-label={`Expenses for day ${group.day_number}`}
@@ -654,70 +503,13 @@ function ExpenseDayTable({ group }: { group: GeneratedExpenseDay }) {
   );
 }
 
-function SummaryTile({ label, value }: { label: string; value: string }) {
+function LoadingStep({ label }: { label: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+    <div className="rounded-[20px] border border-slate-200 bg-[#f8fbff] px-5 py-4 text-base text-slate-600 opacity-90 animate-pulse">
+      <span className="font-medium text-blue-600">{">"}</span>
+      <span className="ml-3">{label}</span>
     </div>
   );
-}
-
-function TagSection({
-  label,
-  values,
-  tone = "blue"
-}: {
-  label: string;
-  values: string[];
-  tone?: "blue" | "muted";
-}) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {values.length === 0 ? (
-          <Chip variant="flat" className="bg-slate-100 text-slate-600">
-            None
-          </Chip>
-        ) : (
-          values.map((value) => (
-            <Chip
-              key={value}
-              variant="flat"
-              className={tone === "blue" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"}
-            >
-              {value}
-            </Chip>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
-      {message}
-    </div>
-  );
-}
-
-function formatDuration(days: number | null, nights: number | null) {
-  if (days == null && nights == null) {
-    return "-";
-  }
-
-  if (days != null && nights != null) {
-    return `${days} days, ${nights} nights`;
-  }
-
-  if (days != null) {
-    return `${days} days`;
-  }
-
-  return `${nights} nights`;
 }
 
 function formatCurrency(amount: number) {

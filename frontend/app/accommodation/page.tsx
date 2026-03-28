@@ -10,7 +10,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Input
+  Textarea
 } from "@heroui/react";
 import {
   getDemoTravelPlan,
@@ -177,9 +177,9 @@ export default function AccommodationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100">
+    <main className="min-h-screen bg-[#f4f7fb]">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-6 md:px-6 xl:px-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <header className="soft-panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">
               Stay Selection Workspace
@@ -217,9 +217,15 @@ export default function AccommodationPage() {
           </div>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div
+          className={`grid gap-6 transition-all duration-300 ${
+            isSidebarOpen
+              ? "xl:grid-cols-[minmax(0,1fr)_440px]"
+              : "xl:grid-cols-[minmax(0,1fr)_108px]"
+          }`}
+        >
           <section className="space-y-6">
-            <Card className="border border-blue-100 bg-white shadow-sm">
+            <Card className="soft-panel">
               <CardHeader className="flex flex-col items-start gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Accommodation search status</p>
@@ -262,7 +268,7 @@ export default function AccommodationPage() {
             </Card>
 
             {nightGroups.length === 0 && isBootstrapping ? (
-              <Card className="border border-blue-100 bg-white shadow-sm">
+              <Card className="soft-panel">
                 <CardBody className="flex items-center gap-3 px-6 py-8">
                   <CircularProgress aria-label="Preparing accommodation flow" color="primary" />
                   <div>
@@ -280,7 +286,7 @@ export default function AccommodationPage() {
                 const selectedOption = selectedByNight[group.id];
 
                 return (
-                  <Card key={group.id} className="border border-blue-100 bg-white shadow-sm">
+                  <Card key={group.id} className="soft-panel">
                     <CardHeader className="flex flex-col items-start gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -313,7 +319,7 @@ export default function AccommodationPage() {
                               ? "Mock results"
                               : "Backend results"}
                         </Chip>
-                        <div className="rounded-2xl border border-blue-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="soft-subpanel px-4 py-3 text-sm text-slate-600">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                             Selection status
                           </p>
@@ -346,7 +352,7 @@ export default function AccommodationPage() {
                       </div>
 
                       {group.reuseOption && (
-                        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                        <div className="soft-url-panel">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                               <p className="text-sm font-semibold text-slate-900">Reuse option</p>
@@ -386,9 +392,9 @@ export default function AccommodationPage() {
                             return (
                               <article
                                 key={option.option_id ?? `${group.id}-${optionIndex}`}
-                                className={`group overflow-hidden rounded-3xl border bg-white transition duration-200 ${
+                                className={`group overflow-hidden rounded-[30px] border bg-white transition duration-200 ${
                                   isSelected
-                                    ? "border-blue-500 shadow-[0_18px_44px_rgba(37,99,235,0.18)] ring-2 ring-blue-100"
+                                    ? "border-blue-500 shadow-[0_20px_44px_rgba(37,99,235,0.18)] ring-2 ring-blue-100"
                                     : "border-slate-200 shadow-sm hover:-translate-y-1 hover:border-blue-300 hover:shadow-[0_18px_36px_rgba(15,23,42,0.10)]"
                                 }`}
                               >
@@ -430,7 +436,7 @@ export default function AccommodationPage() {
                                         {option.location_summary ?? "Location summary unavailable."}
                                       </p>
                                     </div>
-                                    <div className="rounded-2xl bg-slate-50 px-3 py-2 text-right">
+                                    <div className="soft-subpanel px-3 py-2 text-right">
                                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                                         Nightly
                                       </p>
@@ -484,8 +490,8 @@ export default function AccommodationPage() {
 
                                   <Button
                                     color="primary"
-                                    className={`w-full font-medium ${
-                                      isSelected ? "bg-blue-700 text-white" : "bg-blue-600 text-white"
+                                    className={`w-full ${
+                                      isSelected ? "soft-pill-button bg-blue-700" : "soft-pill-button"
                                     }`}
                                     onPress={() => handleSelect(group.id, option)}
                                   >
@@ -507,8 +513,7 @@ export default function AccommodationPage() {
               <Button
                 as={Link}
                 href="/summary"
-                color="primary"
-                className="bg-blue-600 px-6 text-white"
+                className="soft-pill-button"
                 isDisabled={nightGroups.length === 0 || selectedNightCount !== nightGroups.length}
               >
                 Continue to summary
@@ -517,9 +522,9 @@ export default function AccommodationPage() {
           </section>
 
           <aside className="xl:sticky xl:top-6 xl:self-start">
-            <Card className="border border-blue-100 bg-white shadow-sm">
+            <Card className="soft-panel overflow-hidden">
               <CardHeader className="flex items-center justify-between px-5 pt-5">
-                <div>
+                <div className={isSidebarOpen ? "" : "hidden"}>
                   <p className="text-sm font-semibold text-slate-900">Booking summary</p>
                   <p className="text-sm text-slate-500">
                     Selected stays, booking URLs, and real trip totals update in place.
@@ -528,7 +533,7 @@ export default function AccommodationPage() {
                 <Button
                   size="sm"
                   variant="light"
-                  className="text-blue-600"
+                  className="soft-pill-toggle min-w-[88px] text-blue-600"
                   onPress={() => setIsSidebarOpen((current) => !current)}
                 >
                   {isSidebarOpen ? "Collapse" : "Expand"}
@@ -537,7 +542,7 @@ export default function AccommodationPage() {
 
               {isSidebarOpen && (
                 <CardBody className="gap-4 px-5 pb-5">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <div className="soft-url-panel">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Selected nights
                     </p>
@@ -553,7 +558,7 @@ export default function AccommodationPage() {
                       const selection = selectedByNight[group.id];
 
                       return (
-                        <div key={group.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div key={group.id} className="soft-subpanel p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <p className="text-sm font-semibold text-slate-900">{group.nightLabel}</p>
@@ -588,17 +593,42 @@ export default function AccommodationPage() {
                                     : "-"}
                                 </p>
                               </div>
-                              <Input
-                                isReadOnly
-                                value={selection.booking_url ?? ""}
-                                label="Booking URL"
-                                labelPlacement="outside"
-                                variant="bordered"
-                                classNames={{
-                                  inputWrapper:
-                                    "border-slate-200 bg-white shadow-none data-[hover=true]:border-blue-300"
-                                }}
-                              />
+                              <div className="soft-url-panel space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                      Booking URL
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                      Wider field for inspecting the destination link before Page 3.
+                                    </p>
+                                  </div>
+                                  {selection.booking_url && (
+                                    <Button
+                                      as="a"
+                                      href={selection.booking_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="soft-pill-button-secondary h-10 px-4"
+                                    >
+                                      Open
+                                    </Button>
+                                  )}
+                                </div>
+                                <Textarea
+                                  isReadOnly
+                                  value={selection.booking_url ?? ""}
+                                  variant="bordered"
+                                  minRows={4}
+                                  placeholder="Booking link will appear here once available."
+                                  classNames={{
+                                    base: "w-full",
+                                    input: "text-xs leading-6 text-slate-700",
+                                    inputWrapper:
+                                      "min-h-[132px] rounded-[22px] border-blue-100 bg-white shadow-none data-[hover=true]:border-blue-300"
+                                  }}
+                                />
+                              </div>
                             </div>
                           ) : (
                             <p className="mt-4 text-sm text-slate-500">
@@ -628,6 +658,25 @@ export default function AccommodationPage() {
                   </div>
                 </CardBody>
               )}
+
+              {!isSidebarOpen && (
+                <CardBody className="items-center gap-4 px-3 pb-5 pt-2">
+                  <div className="soft-url-panel flex w-full flex-col items-center px-3 py-4 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Selected
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{selectedNightCount}</p>
+                  </div>
+                  <div className="soft-url-panel flex w-full flex-col items-center px-3 py-4 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Total
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      {formatCurrency(runningTripTotal)}
+                    </p>
+                  </div>
+                </CardBody>
+              )}
             </Card>
           </aside>
         </div>
@@ -646,7 +695,7 @@ function Stepper() {
         return (
           <div
             key={route.step}
-            className={`flex items-center gap-3 rounded-full border px-4 py-2 ${
+            className={`flex items-center gap-3 rounded-full border px-4 py-2 shadow-sm ${
               isCurrent ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"
             }`}
           >
@@ -678,7 +727,7 @@ function Stepper() {
 
 function StatusTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="soft-metric">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
     </div>
@@ -687,7 +736,7 @@ function StatusTile({ label, value }: { label: string; value: string }) {
 
 function MiniMetaCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="soft-metric">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
     </div>
@@ -711,7 +760,7 @@ function LoadingState() {
 }
 
 function Pill({ label }: { label: string }) {
-  return <div className="rounded-full bg-slate-50 px-3 py-1.5">{label}</div>;
+  return <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">{label}</div>;
 }
 
 function SummaryRow({
@@ -724,7 +773,7 @@ function SummaryRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+    <div className="soft-subpanel flex items-center justify-between gap-3 px-4 py-3">
       <p className="text-sm text-slate-500">{label}</p>
       <p className={`text-sm font-semibold ${highlight ? "text-blue-700" : "text-slate-900"}`}>
         {value}

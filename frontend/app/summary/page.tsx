@@ -9,8 +9,8 @@ import {
   CardHeader,
   Chip,
   Divider,
-  Input,
-  Snippet
+  Snippet,
+  Textarea
 } from "@heroui/react";
 import { getDemoTravelPlan } from "../../lib/api";
 import {
@@ -44,6 +44,7 @@ export default function SummaryPage() {
     useState<AccommodationSelectionMap>({});
   const [pageNotice, setPageNotice] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState<ShareStatus>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const storedPlan = loadTravelPlanFromSession();
@@ -126,9 +127,9 @@ export default function SummaryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100">
+    <main className="min-h-screen bg-[#f4f7fb]">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-6 md:px-6 xl:px-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <header className="soft-panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">
               Final Trip Summary
@@ -165,9 +166,15 @@ export default function SummaryPage() {
           </div>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div
+          className={`grid gap-6 transition-all duration-300 ${
+            isSidebarOpen
+              ? "xl:grid-cols-[minmax(0,1fr)_420px]"
+              : "xl:grid-cols-[minmax(0,1fr)_108px]"
+          }`}
+        >
           <section className="space-y-6">
-            <Card className="border border-blue-100 bg-white shadow-sm">
+            <Card className="soft-panel">
               <CardHeader className="flex flex-col items-start gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Trip overview</p>
@@ -197,7 +204,7 @@ export default function SummaryPage() {
               </CardBody>
             </Card>
 
-            <Card className="border border-blue-100 bg-white shadow-sm">
+            <Card className="soft-panel">
               <CardHeader className="flex flex-col items-start gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Share-ready summary</p>
@@ -206,12 +213,11 @@ export default function SummaryPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Button color="primary" className="bg-blue-600 text-white" onPress={handleCopySummary}>
+                  <Button className="soft-pill-button" onPress={handleCopySummary}>
                     Copy summary
                   </Button>
                   <Button
-                    variant="bordered"
-                    className="border-blue-200 text-blue-700"
+                    className="soft-pill-button-secondary"
                     onPress={handleShareOrExport}
                   >
                     Share or export
@@ -219,7 +225,7 @@ export default function SummaryPage() {
                 </div>
               </CardHeader>
               <CardBody className="px-6 pb-6">
-                <div className="rounded-3xl border border-blue-100 bg-slate-50 p-5">
+                <div className="soft-url-panel p-5">
                   <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-slate-700">
                     {shareText}
                   </pre>
@@ -227,7 +233,7 @@ export default function SummaryPage() {
               </CardBody>
             </Card>
 
-            <Card className="border border-blue-100 bg-white shadow-sm">
+            <Card className="soft-panel">
               <CardHeader className="px-6 pt-6">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Final itinerary by day</p>
@@ -238,7 +244,7 @@ export default function SummaryPage() {
               </CardHeader>
               <CardBody className="space-y-4 px-6 pb-6">
                 {(travelPlan?.itinerary.itinerary_days ?? []).map((day) => (
-                  <article key={day.day_number} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <article key={day.day_number} className="soft-subpanel p-4">
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -252,7 +258,7 @@ export default function SummaryPage() {
                           {day.start_area ?? "-"} / {day.end_area ?? "-"}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3">
+                      <div className="soft-panel px-4 py-3 shadow-none">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                           Day estimate
                         </p>
@@ -266,7 +272,7 @@ export default function SummaryPage() {
                       {day.activities.map((activity, index) => (
                         <div
                           key={`${activity.label}-${index}`}
-                          className="rounded-2xl border border-white bg-white p-4 shadow-sm"
+                          className="rounded-[24px] border border-white bg-white p-4 shadow-sm"
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
@@ -297,7 +303,7 @@ export default function SummaryPage() {
               </CardBody>
             </Card>
 
-            <Card className="border border-blue-100 bg-white shadow-sm">
+            <Card className="soft-panel">
               <CardHeader className="px-6 pt-6">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Selected accommodations</p>
@@ -311,7 +317,7 @@ export default function SummaryPage() {
                   <EmptyState message="No stay selections have been saved yet. Select accommodations on Page 2 to complete the summary." />
                 ) : (
                   selectedStays.map((stay) => (
-                    <article key={stay.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <article key={stay.id} className="soft-subpanel p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
@@ -327,7 +333,7 @@ export default function SummaryPage() {
                             {stay.property.location_summary ?? "Location summary unavailable."}
                           </p>
                         </div>
-                        <div className="min-w-[220px] rounded-2xl border border-blue-100 bg-white p-4">
+                        <div className="soft-panel min-w-[220px] p-4 shadow-none">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                             Nightly estimate
                           </p>
@@ -341,7 +347,7 @@ export default function SummaryPage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+                      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                         <div className="flex flex-wrap gap-2">
                           {(stay.property.matched_amenities.length > 0
                             ? stay.property.matched_amenities
@@ -355,17 +361,41 @@ export default function SummaryPage() {
                             </Chip>
                           ))}
                         </div>
-                        <Input
-                          isReadOnly
-                          value={stay.property.booking_url ?? ""}
-                          label="Booking URL"
-                          labelPlacement="outside"
-                          variant="bordered"
-                          classNames={{
-                            inputWrapper:
-                              "border-slate-200 bg-white shadow-none data-[hover=true]:border-blue-300"
-                          }}
-                        />
+                        <div className="soft-url-panel space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Booking URL
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                Preserved booking link for handoff or sharing.
+                              </p>
+                            </div>
+                            {stay.property.booking_url && (
+                              <Button
+                                as="a"
+                                href={stay.property.booking_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="soft-pill-button-secondary h-10 px-4"
+                              >
+                                Open
+                              </Button>
+                            )}
+                          </div>
+                          <Textarea
+                            isReadOnly
+                            value={stay.property.booking_url ?? ""}
+                            variant="bordered"
+                            minRows={4}
+                            placeholder="Booking link will appear here once available."
+                            classNames={{
+                              input: "text-xs leading-6 text-slate-700",
+                              inputWrapper:
+                                "min-h-[132px] rounded-[22px] border-blue-100 bg-white shadow-none data-[hover=true]:border-blue-300"
+                            }}
+                          />
+                        </div>
                       </div>
                     </article>
                   ))
@@ -375,84 +405,112 @@ export default function SummaryPage() {
           </section>
 
           <aside className="xl:sticky xl:top-6 xl:self-start">
-            <Card className="border border-blue-100 bg-white shadow-sm">
-              <CardHeader className="px-5 pt-5">
-                <div>
+            <Card className="soft-panel overflow-hidden">
+              <CardHeader className="flex items-center justify-between px-5 pt-5">
+                <div className={isSidebarOpen ? "" : "hidden"}>
                   <p className="text-sm font-semibold text-slate-900">Expense breakdown</p>
                   <p className="text-sm text-slate-500">
                     Clear totals for the itinerary, stays, and final estimated spend.
                   </p>
                 </div>
+                <Button
+                  size="sm"
+                  variant="light"
+                  className="soft-pill-toggle min-w-[88px] text-blue-600"
+                  onPress={() => setIsSidebarOpen((current) => !current)}
+                >
+                  {isSidebarOpen ? "Collapse" : "Expand"}
+                </Button>
               </CardHeader>
-              <CardBody className="gap-4 px-5 pb-5">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Total estimated trip cost
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">
-                    {formatCurrency(totalEstimatedCost)}
-                  </p>
-                </div>
+              {isSidebarOpen && (
+                <CardBody className="gap-4 px-5 pb-5">
+                  <div className="soft-url-panel">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Total estimated trip cost
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">
+                      {formatCurrency(totalEstimatedCost)}
+                    </p>
+                  </div>
 
-                <div className="space-y-3">
-                  <SummaryRow label="Itinerary expenses" value={formatCurrency(itineraryNonHotelCost)} />
-                  <SummaryRow label="Selected stays" value={formatCurrency(selectedStayCost)} />
-                  <SummaryRow label="Combined estimate" value={formatCurrency(totalEstimatedCost)} highlight />
-                </div>
+                  <div className="space-y-3">
+                    <SummaryRow label="Itinerary expenses" value={formatCurrency(itineraryNonHotelCost)} />
+                    <SummaryRow label="Selected stays" value={formatCurrency(selectedStayCost)} />
+                    <SummaryRow label="Combined estimate" value={formatCurrency(totalEstimatedCost)} highlight />
+                  </div>
 
-                <Divider />
+                  <Divider />
 
-                <div className="space-y-4">
-                  {itineraryExpenses.map((group) => (
-                    <div key={group.day_number} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">Day {group.day_number}</p>
-                          <p className="text-xs text-slate-500">{group.city}</p>
-                        </div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {formatCurrency(group.items.reduce((total, item) => total + item.estimated_cost, 0))}
-                        </p>
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        {group.items.map((item, index) => (
-                          <div key={`${item.label}-${index}`} className="flex items-start justify-between gap-3 text-sm">
-                            <div>
-                              <p className="font-medium text-slate-900">{item.label}</p>
-                              <p className="text-slate-500">{item.category}</p>
-                            </div>
-                            <p className="font-medium text-slate-900">{formatCurrency(item.estimated_cost)}</p>
+                  <div className="space-y-4">
+                    {itineraryExpenses.map((group) => (
+                      <div key={group.day_number} className="soft-subpanel p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Day {group.day_number}</p>
+                            <p className="text-xs text-slate-500">{group.city}</p>
                           </div>
-                        ))}
+                          <p className="text-sm font-medium text-slate-900">
+                            {formatCurrency(group.items.reduce((total, item) => total + item.estimated_cost, 0))}
+                          </p>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {group.items.map((item, index) => (
+                            <div key={`${item.label}-${index}`} className="flex items-start justify-between gap-3 text-sm">
+                              <div>
+                                <p className="font-medium text-slate-900">{item.label}</p>
+                                <p className="text-slate-500">{item.category}</p>
+                              </div>
+                              <p className="font-medium text-slate-900">{formatCurrency(item.estimated_cost)}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                <Divider />
+                  <Divider />
 
-                <nav className="flex flex-wrap gap-3">
-                  {travelFlowRoutes.map((route) => (
-                    <Button
-                      key={route.step}
-                      as={Link}
-                      href={route.href}
-                      variant={route.step === "summary" ? "solid" : "bordered"}
-                      className={
-                        route.step === "summary"
-                          ? "bg-blue-600 text-white"
-                          : "border-blue-200 text-blue-700"
-                      }
-                    >
-                      {route.step === "itinerary"
-                        ? "Edit itinerary"
-                        : route.step === "accommodation"
-                          ? "Edit stays"
-                          : "Summary"}
-                    </Button>
-                  ))}
-                </nav>
-              </CardBody>
+                  <nav className="flex flex-wrap gap-3">
+                    {travelFlowRoutes.map((route) => (
+                      <Button
+                        key={route.step}
+                        as={Link}
+                        href={route.href}
+                        className={
+                          route.step === "summary"
+                            ? "soft-pill-button"
+                            : "soft-pill-button-secondary"
+                        }
+                      >
+                        {route.step === "itinerary"
+                          ? "Edit itinerary"
+                          : route.step === "accommodation"
+                            ? "Edit stays"
+                            : "Summary"}
+                      </Button>
+                    ))}
+                  </nav>
+                </CardBody>
+              )}
+
+              {!isSidebarOpen && (
+                <CardBody className="items-center gap-4 px-3 pb-5 pt-2">
+                  <div className="soft-url-panel flex w-full flex-col items-center px-3 py-4 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Total
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      {formatCurrency(totalEstimatedCost)}
+                    </p>
+                  </div>
+                  <div className="soft-url-panel flex w-full flex-col items-center px-3 py-4 text-center">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Stays
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{selectedStays.length}</p>
+                  </div>
+                </CardBody>
+              )}
             </Card>
           </aside>
         </div>
@@ -471,7 +529,7 @@ function Stepper() {
         return (
           <div
             key={route.step}
-            className={`flex items-center gap-3 rounded-full border px-4 py-2 ${
+            className={`flex items-center gap-3 rounded-full border px-4 py-2 shadow-sm ${
               isCurrent ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"
             }`}
           >
@@ -503,7 +561,7 @@ function Stepper() {
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="soft-metric">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
     </div>
@@ -520,7 +578,7 @@ function SummaryRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+    <div className="soft-subpanel flex items-center justify-between gap-3 px-4 py-3">
       <p className="text-sm text-slate-500">{label}</p>
       <p className={`text-sm font-semibold ${highlight ? "text-blue-700" : "text-slate-900"}`}>
         {value}
