@@ -28,6 +28,7 @@ def _poll_tinyfish_run(
     base_url: str,
     timeout_seconds: int = 20,
     poll_interval_seconds: float = 1.0,
+    request_timeout_seconds: float = 4.0,
 ) -> dict[str, Any] | None:
     endpoint_candidates = [
         f"{base_url.rstrip('/')}/v1/automation/runs/{run_id}",
@@ -37,9 +38,14 @@ def _poll_tinyfish_run(
     latest_payload: dict[str, Any] | None = None
 
     while time.monotonic() < deadline:
+        remaining_seconds = max(deadline - time.monotonic(), 0.1)
         for endpoint in endpoint_candidates:
             try:
-                response = client.get(endpoint, headers=headers)
+                response = client.get(
+                    endpoint,
+                    headers=headers,
+                    timeout=min(request_timeout_seconds, remaining_seconds),
+                )
                 response.raise_for_status()
                 payload = response.json()
                 latest_payload = payload
@@ -49,7 +55,7 @@ def _poll_tinyfish_run(
                     return payload
             except Exception:
                 continue
-        time.sleep(poll_interval_seconds)
+        time.sleep(min(poll_interval_seconds, max(deadline - time.monotonic(), 0)))
 
     return latest_payload
 
@@ -77,9 +83,12 @@ def run_tinyfish(goal: str, url: str | None, api_key: str | None, base_url: str)
     endpoint = f"{base_url.rstrip('/')}/v1/automation/run"
     payload = {"goal": goal, "url": url}
     headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+    overall_timeout_seconds = 20
+    deadline = time.monotonic() + overall_timeout_seconds
 
-    with httpx.Client(timeout=60) as client:
-        response = client.post(endpoint, json=payload, headers=headers)
+    with httpx.Client(timeout=min(8, overall_timeout_seconds)) as client:
+        post_timeout = min(8, max(deadline - time.monotonic(), 0.1))
+        response = client.post(endpoint, json=payload, headers=headers, timeout=post_timeout)
         response.raise_for_status()
         initial_payload = response.json()
 
@@ -88,11 +97,14 @@ def run_tinyfish(goal: str, url: str | None, api_key: str | None, base_url: str)
 
         run_id = initial_payload.get("run_id")
         if isinstance(run_id, str) and run_id.strip():
+            remaining_timeout = max(int(deadline - time.monotonic()), 1)
             polled_payload = _poll_tinyfish_run(
                 client=client,
                 run_id=run_id,
                 headers=headers,
                 base_url=base_url,
+                timeout_seconds=remaining_timeout,
+                request_timeout_seconds=4.0,
             )
             if polled_payload is not None:
                 return polled_payload
