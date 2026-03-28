@@ -169,7 +169,17 @@ export default function ItineraryPage() {
               losing the main canvas.
             </p>
           </div>
-          <Stepper />
+          <div className="flex flex-col items-end gap-3">
+            <Button
+              as={Link}
+              href="/accommodation"
+              className="soft-pill-button h-11 min-w-[170px] px-5 text-center text-sm font-semibold tracking-[0.01em]"
+              isDisabled={!result}
+            >
+              Continue to Stays
+            </Button>
+            <Stepper />
+          </div>
         </header>
 
         {(error || (result?.source === "mock" && !error)) && (
@@ -209,7 +219,7 @@ export default function ItineraryPage() {
                 </Chip>
               </CardHeader>
               <CardBody className="relative min-h-0 px-6 pb-6 pt-0">
-                {itineraryDays.length === 0 ? (
+                {itineraryDays.length === 0 && !isPlanning ? (
                   <div className="flex min-h-[210px] items-center justify-center rounded-[28px] border border-dashed border-blue-200 bg-[#f8fbff] px-6 py-10 text-center">
                     <div>
                       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 px-3 py-3 text-sm font-semibold uppercase tracking-[0.22em] text-blue-600">
@@ -219,6 +229,28 @@ export default function ItineraryPage() {
                       <p className="mt-2 text-base leading-7 text-slate-500">
                         Start by describing your trip below.
                       </p>
+                    </div>
+                  </div>
+                ) : itineraryDays.length === 0 && isPlanning ? (
+                  <div className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-blue-100 bg-[#f8fbff] px-6 py-10">
+                    <div className="w-full max-w-2xl rounded-[28px] border border-white bg-white px-6 py-7 shadow-[0_18px_44px_rgba(148,163,184,0.12)]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 px-3 py-3 text-lg text-blue-600">
+                          *
+                        </div>
+                        <div>
+                          <p className="text-xl font-semibold text-slate-900">Planning your trip...</p>
+                          <p className="text-base leading-7 text-slate-500">
+                            Turning your prompt into a structured travel plan.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-3">
+                        <LoadingStep label="Analyzing destinations" />
+                        <LoadingStep label="Building day-by-day flow" />
+                        <LoadingStep label="Estimating costs" />
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -235,7 +267,7 @@ export default function ItineraryPage() {
                   </div>
                 )}
 
-                {isPlanning && (
+                {isPlanning && itineraryDays.length > 0 && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/78 px-6 backdrop-blur-[2px] transition duration-300">
                     <div className="w-full max-w-xl rounded-[28px] border border-blue-100 bg-white px-6 py-7 shadow-[0_20px_48px_rgba(148,163,184,0.16)]">
                       <div className="flex items-center gap-3">
@@ -306,11 +338,6 @@ export default function ItineraryPage() {
                     onPress={handleComposerSubmit}
                   >
                     {result ? "Apply" : "Generate itinerary"}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-end">
-                  <Button as={Link} href="/accommodation" className="soft-pill-button" isDisabled={!result}>
-                    Proceed to stays
                   </Button>
                 </div>
               </CardBody>
@@ -493,7 +520,20 @@ function ExpenseDayTable({ group }: { group: GeneratedExpenseDay }) {
           {group.items.map((item, index) => (
             <TableRow key={`${item.label}-${index}`}>
               <TableCell className="font-medium text-slate-900">{item.label}</TableCell>
-              <TableCell>{item.url || "-"}</TableCell>
+              <TableCell>
+                {item.url ? (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-blue-600 underline underline-offset-2"
+                  >
+                    Link
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </TableCell>
               <TableCell>{formatCurrency(item.estimated_cost)}</TableCell>
             </TableRow>
           ))}
