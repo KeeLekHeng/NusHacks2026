@@ -2,16 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Chip,
-  CircularProgress,
-  Divider,
-  Textarea
-} from "@heroui/react";
+import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import {
   getDemoTravelPlan,
   prepareAccommodationTasks,
@@ -45,21 +36,11 @@ export default function AccommodationPage() {
   const [nightGroups, setNightGroups] = useState<AccommodationNightGroup[]>([]);
   const [selectedByNight, setSelectedByNight] = useState<Record<string, AccommodationSearchOption>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isBootstrapping, setIsBootstrapping] = useState(true);
-  const [bootError, setBootError] = useState<string | null>(null);
-  const [pageNotice, setPageNotice] = useState<string | null>(null);
-  const [completedNightCount, setCompletedNightCount] = useState(0);
-  const [usesMockFallback, setUsesMockFallback] = useState(false);
 
   useEffect(() => {
     let isActive = true;
 
     async function hydrateAccommodationFlow() {
-      setIsBootstrapping(true);
-      setBootError(null);
-      setCompletedNightCount(0);
-      setUsesMockFallback(false);
-
       const storedPlan = loadTravelPlanFromSession();
       const nextPlan = storedPlan ?? getDemoTravelPlan();
 
@@ -68,11 +49,6 @@ export default function AccommodationPage() {
       }
 
       setTravelPlan(nextPlan);
-      setPageNotice(
-        storedPlan
-          ? null
-          : "No finalized itinerary was found from Page 1, so this screen is using a demo trip shell."
-      );
       setSelectedByNight(loadAccommodationSelectionsFromSession());
 
       try {
@@ -95,7 +71,7 @@ export default function AccommodationPage() {
                 group.id === buildNightGroupId(task)
                   ? {
                       ...group,
-                      options: result.options,
+                      options: result.options.slice(0, 3),
                       reuseOption: result.reuse_option ?? null,
                       source: result.mode,
                       status: result.options.length > 0 ? "ready" : "error",
@@ -107,27 +83,14 @@ export default function AccommodationPage() {
                   : group
               )
             );
-            setCompletedNightCount((current) => current + 1);
-            if (result.mode === "mock") {
-              setUsesMockFallback(true);
-            }
           })
         );
-      } catch (error) {
+      } catch {
         if (!isActive) {
           return;
         }
 
-        setBootError(
-          error instanceof Error
-            ? error.message
-            : "Unable to prepare accommodation search tasks."
-        );
         setNightGroups([]);
-      } finally {
-        if (isActive) {
-          setIsBootstrapping(false);
-        }
       }
     }
 
@@ -147,27 +110,16 @@ export default function AccommodationPage() {
     [travelPlan]
   );
 
-  const selectedOptions = useMemo(
-    () =>
-      nightGroups
-        .map((group) => selectedByNight[group.id])
-        .filter((option): option is AccommodationSearchOption => Boolean(option)),
-    [nightGroups, selectedByNight]
-  );
-
+  const selectedNightCount = nightGroups.filter((group) => selectedByNight[group.id]).length;
   const selectedAccommodationCost = useMemo(
     () =>
-      selectedOptions.reduce(
+      Object.values(selectedByNight).reduce(
         (total, option) => total + (option.nightly_price ?? option.total_price ?? 0),
         0
       ),
-    [selectedOptions]
+    [selectedByNight]
   );
-
   const runningTripTotal = itineraryCarryCost + selectedAccommodationCost;
-  const loadingNightCount = nightGroups.filter((group) => group.status === "loading").length;
-  const readyNightCount = nightGroups.filter((group) => group.status === "ready").length;
-  const selectedNightCount = nightGroups.filter((group) => selectedByNight[group.id]).length;
 
   function handleSelect(groupId: string, option: AccommodationSearchOption) {
     setSelectedByNight((current) => ({
@@ -178,249 +130,91 @@ export default function AccommodationPage() {
 
   return (
     <main className="min-h-screen bg-[#f4f7fb]">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-6 md:px-6 xl:px-8">
+      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-4 py-6 md:px-6 xl:px-8 2xl:max-w-[1920px]">
         <header className="soft-panel flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">
-              Stay Selection Workspace
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">
+              Step 2 of 3
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Review ranked stays night by night and lock the best fit
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+              Choose your stays
             </h1>
-            <p className="max-w-3xl text-sm leading-6 text-slate-500">
-              Page 2 now pulls the finalized itinerary into the accommodation pipeline, loads each
-              required night independently, and keeps the booking sidebar synced with live
-              selections.
-            </p>
           </div>
           <Stepper />
         </header>
 
-        {(pageNotice || usesMockFallback || bootError) && (
-          <div className="space-y-3">
-            {pageNotice && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                {pageNotice}
-              </div>
-            )}
-            {usesMockFallback && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                One or more nights fell back to mock accommodation data because the backend search
-                pipeline was unavailable.
-              </div>
-            )}
-            {bootError && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {bootError}
-              </div>
-            )}
-          </div>
-        )}
-
         <div
           className={`grid gap-6 transition-all duration-300 ${
             isSidebarOpen
-              ? "xl:grid-cols-[minmax(0,1fr)_440px]"
-              : "xl:grid-cols-[minmax(0,1fr)_108px]"
+              ? "xl:grid-cols-[minmax(0,7fr)_minmax(300px,3fr)]"
+              : "xl:grid-cols-[minmax(0,1fr)_112px]"
           }`}
         >
           <section className="space-y-6">
-            <Card className="soft-panel">
-              <CardHeader className="flex flex-col items-start gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Accommodation search status</p>
-                  <p className="text-sm text-slate-500">
-                    Search tasks are prepared from the itinerary first, then each night resolves
-                    independently for smoother partial loading.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Chip variant="flat" className="bg-blue-50 text-blue-700">
-                    {nightGroups.length === 0 ? "Preparing nights" : `${readyNightCount}/${nightGroups.length} ready`}
-                  </Chip>
-                  <Chip variant="flat" className="bg-slate-100 text-slate-700">
-                    {loadingNightCount > 0 ? `${loadingNightCount} loading` : "Search settled"}
-                  </Chip>
-                </div>
-              </CardHeader>
-              <CardBody className="grid gap-3 px-6 pb-6 md:grid-cols-3">
-                <StatusTile
-                  label="Trip source"
-                  value={travelPlan?.source === "backend" ? "Backend itinerary" : "Mock itinerary"}
-                />
-                <StatusTile
-                  label="Night progress"
-                  value={
-                    nightGroups.length === 0
-                      ? "Preparing"
-                      : `${completedNightCount}/${nightGroups.length} loaded`
-                  }
-                />
-                <StatusTile
-                  label="Selected stays"
-                  value={
-                    nightGroups.length === 0
-                      ? "0"
-                      : `${selectedNightCount}/${nightGroups.length}`
-                  }
-                />
-              </CardBody>
-            </Card>
-
-            {nightGroups.length === 0 && isBootstrapping ? (
-              <Card className="soft-panel">
-                <CardBody className="flex items-center gap-3 px-6 py-8">
-                  <CircularProgress aria-label="Preparing accommodation flow" color="primary" />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Preparing accommodation search tasks
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      Pulling the finalized itinerary into the stay-selection pipeline.
-                    </p>
-                  </div>
-                </CardBody>
-              </Card>
+            {nightGroups.length === 0 ? (
+              <div className="space-y-6">
+                {[1, 2, 3].map((night) => (
+                  <NightSkeleton key={night} />
+                ))}
+              </div>
             ) : (
-              nightGroups.map((group, index) => {
+              nightGroups.map((group, groupIndex) => {
                 const selectedOption = selectedByNight[group.id];
 
                 return (
                   <Card key={group.id} className="soft-panel">
-                    <CardHeader className="flex flex-col items-start gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between">
+                    <CardHeader className="px-6 pb-4 pt-6">
                       <div>
                         <div className="flex flex-wrap items-center gap-3">
-                          <Chip className="bg-blue-600 text-white" size="sm">
-                            {group.nightLabel}
-                          </Chip>
-                          <p className="text-sm font-medium text-slate-500">
-                            Day {group.dayNumber} / {group.city}
+                          <p className="text-2xl font-semibold text-slate-900">
+                            {group.nightLabel} - {group.city}
                           </p>
                         </div>
-                        <h2 className="mt-3 text-2xl font-semibold text-slate-900">{group.area}</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                          Check-in {group.checkIn ?? "-"} / Check-out {group.checkOut ?? "-"}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <Chip
-                          variant="flat"
-                          className={
-                            group.status === "loading"
-                              ? "bg-blue-50 text-blue-700"
-                              : group.source === "mock"
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-emerald-50 text-emerald-700"
-                          }
-                        >
-                          {group.status === "loading"
-                            ? "Loading stays"
-                            : group.source === "mock"
-                              ? "Mock results"
-                              : "Backend results"}
-                        </Chip>
-                        <div className="soft-subpanel px-4 py-3 text-sm text-slate-600">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            Selection status
-                          </p>
-                          <p className="mt-1 font-semibold text-slate-900">
-                            {selectedOption ? "Stay selected" : "Choose one option"}
-                          </p>
-                        </div>
+                        <p className="mt-2 text-lg text-slate-500">{group.area}</p>
                       </div>
                     </CardHeader>
 
-                    <CardBody className="space-y-5 px-6 pb-6">
-                      <div className="grid gap-3 lg:grid-cols-4">
-                        <MiniMetaCard label="Target area" value={group.task.target_area ?? group.area} />
-                        <MiniMetaCard
-                          label="Nightly budget"
-                          value={
-                            group.task.nightly_budget != null
-                              ? formatCurrency(group.task.nightly_budget)
-                              : "Flexible"
-                          }
-                        />
-                        <MiniMetaCard
-                          label="Travelers"
-                          value={group.task.traveler_count != null ? String(group.task.traveler_count) : "-"}
-                        />
-                        <MiniMetaCard
-                          label="Reuse check"
-                          value={group.task.reuse_flag ? "Enabled" : "Not needed"}
-                        />
-                      </div>
-
-                      {group.reuseOption && (
-                        <div className="soft-url-panel">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">Reuse option</p>
-                              <p className="mt-1 text-sm text-slate-600">
-                                {group.reuseOption.property_name ?? "Previous stay"} /{" "}
-                                {group.reuseOption.platform ?? "Reuse check"}
-                              </p>
-                            </div>
-                            <Chip
-                              variant="flat"
-                              className={
-                                group.reuseOption.available
-                                  ? "bg-white text-blue-700"
-                                  : "bg-white text-slate-700"
-                              }
-                            >
-                              {group.reuseOption.available ? "Available" : "Unavailable"}
-                            </Chip>
-                          </div>
-                          <p className="mt-3 text-sm text-slate-600">
-                            {group.reuseOption.notes ?? "No additional notes returned for reuse."}
-                          </p>
-                        </div>
-                      )}
-
+                    <CardBody className="px-6 pb-6 pt-0">
                       {group.status === "loading" ? (
-                        <LoadingState />
+                        <div className="grid gap-4 lg:grid-cols-3">
+                          {[0, 1, 2].map((index) => (
+                            <StayCardSkeleton key={`${group.id}-skeleton-${index}`} />
+                          ))}
+                        </div>
                       ) : group.options.length === 0 ? (
-                        <EmptyState message={group.error ?? "No accommodation results were returned for this night."} />
+                        <div className="soft-subpanel px-5 py-6 text-base text-slate-500">
+                          {group.error ?? "No accommodation options available yet."}
+                        </div>
                       ) : (
-                        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                        <div className="grid gap-4 lg:grid-cols-3">
                           {group.options.map((option, optionIndex) => {
                             const isSelected =
                               selectedByNight[group.id]?.option_id === option.option_id;
-                            const imageUrl = getOptionImage(group, option, index, optionIndex);
+                            const imageUrl = getOptionImage(group, option, groupIndex, optionIndex);
+                            const amenities = option.matched_amenities.slice(0, 3);
 
                             return (
                               <article
                                 key={option.option_id ?? `${group.id}-${optionIndex}`}
                                 className={`group overflow-hidden rounded-[30px] border bg-white transition duration-200 ${
                                   isSelected
-                                    ? "border-blue-500 shadow-[0_20px_44px_rgba(37,99,235,0.18)] ring-2 ring-blue-100"
-                                    : "border-slate-200 shadow-sm hover:-translate-y-1 hover:border-blue-300 hover:shadow-[0_18px_36px_rgba(15,23,42,0.10)]"
+                                    ? "scale-[1.02] border-blue-500 shadow-[0_20px_44px_rgba(37,99,235,0.18)] ring-2 ring-blue-100"
+                                    : "border-slate-200 shadow-sm hover:-translate-y-1 hover:scale-[1.01] hover:border-blue-300 hover:shadow-[0_18px_36px_rgba(15,23,42,0.10)]"
                                 }`}
                               >
-                                <div className="relative h-52 overflow-hidden border-b border-slate-200 bg-slate-200">
+                                <div className="relative h-52 overflow-hidden bg-slate-200">
                                   <img
                                     src={imageUrl}
                                     alt={option.property_name ?? "Accommodation option"}
-                                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
                                   />
                                   <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-                                    <Chip
-                                      variant="flat"
-                                      className={isSelected ? "bg-blue-600 text-white" : "bg-white text-slate-700"}
-                                    >
+                                    <Chip variant="flat" className="bg-white px-3 py-1.5 text-sm text-slate-700">
                                       {option.platform ?? "Platform"}
                                     </Chip>
-                                    {option.is_within_budget != null && (
-                                      <Chip
-                                        variant="flat"
-                                        className={
-                                          option.is_within_budget
-                                            ? "bg-white text-emerald-700"
-                                            : "bg-white text-amber-700"
-                                        }
-                                      >
-                                        {option.is_within_budget ? "Within budget" : "Above budget"}
+                                    {isSelected && (
+                                      <Chip className="bg-blue-600 px-3 py-1.5 text-sm text-white">
+                                        Selected
                                       </Chip>
                                     )}
                                   </div>
@@ -429,18 +223,18 @@ export default function AccommodationPage() {
                                 <div className="space-y-4 p-5">
                                   <div className="flex items-start justify-between gap-4">
                                     <div>
-                                      <h3 className="text-xl font-semibold text-slate-900">
+                                      <h3 className="text-2xl font-semibold text-slate-900">
                                         {option.property_name ?? "Unnamed stay"}
                                       </h3>
-                                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                                      <p className="mt-2 text-base leading-7 text-slate-500">
                                         {option.location_summary ?? "Location summary unavailable."}
                                       </p>
                                     </div>
-                                    <div className="soft-subpanel px-3 py-2 text-right">
+                                    <div className="soft-subpanel px-4 py-3 text-right">
                                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                                        Nightly
+                                        Per night
                                       </p>
-                                      <p className="mt-1 text-lg font-semibold text-slate-900">
+                                      <p className="mt-2 text-2xl font-semibold text-slate-900">
                                         {option.nightly_price != null
                                           ? formatCurrency(option.nightly_price)
                                           : "-"}
@@ -448,9 +242,8 @@ export default function AccommodationPage() {
                                     </div>
                                   </div>
 
-                                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                                     <Pill label={`Rating ${formatRating(option.rating)}`} />
-                                    <Pill label={`${option.review_count ?? "-"} reviews`} />
                                     <Pill
                                       label={
                                         option.distance_to_target_km != null
@@ -460,36 +253,23 @@ export default function AccommodationPage() {
                                     />
                                   </div>
 
-                                  <div className="space-y-2">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                      Why recommended
-                                    </p>
-                                    <p className="text-sm leading-6 text-slate-600">
-                                      {option.why_recommended ?? "No recommendation notes were returned."}
-                                    </p>
-                                  </div>
+                                  <p className="text-base leading-7 text-slate-600">
+                                    {option.why_recommended ?? "A strong fit for this night."}
+                                  </p>
 
-                                  <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                      Key amenities
-                                    </p>
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      {(option.matched_amenities.length > 0
-                                        ? option.matched_amenities
-                                        : ["No amenity data"]).map((amenity) => (
-                                        <Chip
-                                          key={`${option.option_id ?? option.property_name}-${amenity}`}
-                                          variant="flat"
-                                          className={isSelected ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"}
-                                        >
-                                          {formatLabel(amenity)}
-                                        </Chip>
-                                      ))}
-                                    </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {(amenities.length > 0 ? amenities : ["No amenity data"]).map((amenity) => (
+                                      <Chip
+                                        key={`${option.option_id ?? option.property_name}-${amenity}`}
+                                        variant="flat"
+                                        className="bg-slate-100 px-3 py-1.5 text-sm text-slate-700"
+                                      >
+                                        {formatLabel(amenity)}
+                                      </Chip>
+                                    ))}
                                   </div>
 
                                   <Button
-                                    color="primary"
                                     className={`w-full ${
                                       isSelected ? "soft-pill-button bg-blue-700" : "soft-pill-button"
                                     }`}
@@ -508,27 +288,13 @@ export default function AccommodationPage() {
                 );
               })
             )}
-
-            <div className="flex items-center justify-end">
-              <Button
-                as={Link}
-                href="/summary"
-                className="soft-pill-button"
-                isDisabled={nightGroups.length === 0 || selectedNightCount !== nightGroups.length}
-              >
-                Continue to summary
-              </Button>
-            </div>
           </section>
 
           <aside className="xl:sticky xl:top-6 xl:self-start">
             <Card className="soft-panel overflow-hidden">
               <CardHeader className="flex items-center justify-between px-5 pt-5">
                 <div className={isSidebarOpen ? "" : "hidden"}>
-                  <p className="text-sm font-semibold text-slate-900">Booking summary</p>
-                  <p className="text-sm text-slate-500">
-                    Selected stays, booking URLs, and real trip totals update in place.
-                  </p>
+                  <p className="text-lg font-semibold text-slate-900">Trip summary</p>
                 </div>
                 <Button
                   size="sm"
@@ -542,17 +308,13 @@ export default function AccommodationPage() {
 
               {isSidebarOpen && (
                 <CardBody className="gap-4 px-5 pb-5">
-                  <div className="soft-url-panel">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Selected nights
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">
-                      {selectedNightCount}/{nightGroups.length || 0}
-                    </p>
-                  </div>
-
                   {nightGroups.length === 0 ? (
-                    <EmptyState message="Night-by-night booking summaries will appear here after the first accommodation search task is prepared." />
+                    [1, 2, 3].map((night) => (
+                      <div key={`sidebar-skeleton-${night}`} className="soft-subpanel animate-pulse px-4 py-5">
+                        <div className="h-5 w-24 rounded-full bg-slate-200" />
+                        <div className="mt-3 h-4 w-40 rounded-full bg-slate-100" />
+                      </div>
+                    ))
                   ) : (
                     nightGroups.map((group) => {
                       const selection = selectedByNight[group.id];
@@ -561,101 +323,41 @@ export default function AccommodationPage() {
                         <div key={group.id} className="soft-subpanel p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-slate-900">{group.nightLabel}</p>
-                              <p className="text-xs text-slate-500">
-                                {group.city} / {group.area}
+                              <p className="text-base font-semibold text-slate-900">{group.nightLabel}</p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                {selection ? selection.property_name ?? "Selected stay" : "Pending"}
                               </p>
                             </div>
                             <Chip
                               variant="flat"
                               className={
                                 selection
-                                  ? "bg-blue-600 text-white"
-                                  : group.status === "loading"
-                                    ? "bg-white text-blue-700"
-                                    : "bg-white text-slate-700"
+                                  ? "bg-blue-600 px-3 py-1.5 text-sm text-white"
+                                  : "bg-slate-100 px-3 py-1.5 text-sm text-slate-700"
                               }
                             >
-                              {selection ? "Selected" : group.status === "loading" ? "Loading" : "Pending"}
+                              {selection ? "Selected" : "Pending"}
                             </Chip>
                           </div>
-
-                          {selection ? (
-                            <div className="mt-4 space-y-3">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-900">
-                                  {selection.property_name ?? "Selected stay"}
-                                </p>
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {selection.platform ?? "Platform"} /{" "}
-                                  {selection.nightly_price != null
-                                    ? formatCurrency(selection.nightly_price)
-                                    : "-"}
-                                </p>
-                              </div>
-                              <div className="soft-url-panel space-y-3">
-                                <div className="flex items-center justify-between gap-3">
-                                  <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                      Booking URL
-                                    </p>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                      Wider field for inspecting the destination link before Page 3.
-                                    </p>
-                                  </div>
-                                  {selection.booking_url && (
-                                    <Button
-                                      as="a"
-                                      href={selection.booking_url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="soft-pill-button-secondary h-10 px-4"
-                                    >
-                                      Open
-                                    </Button>
-                                  )}
-                                </div>
-                                <Textarea
-                                  isReadOnly
-                                  value={selection.booking_url ?? ""}
-                                  variant="bordered"
-                                  minRows={4}
-                                  placeholder="Booking link will appear here once available."
-                                  classNames={{
-                                    base: "w-full",
-                                    input: "text-xs leading-6 text-slate-700",
-                                    inputWrapper:
-                                      "min-h-[132px] rounded-[22px] border-blue-100 bg-white shadow-none data-[hover=true]:border-blue-300"
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="mt-4 text-sm text-slate-500">
-                              {group.status === "loading"
-                                ? "Options are still loading for this night."
-                                : "Pick one stay card to lock in this night."}
-                            </p>
-                          )}
                         </div>
                       );
                     })
                   )}
 
-                  <Divider />
-
                   <div className="space-y-3">
                     <SummaryRow label="Trip plan subtotal" value={formatCurrency(itineraryCarryCost)} />
-                    <SummaryRow
-                      label="Selected stays total"
-                      value={formatCurrency(selectedAccommodationCost)}
-                    />
-                    <SummaryRow
-                      label="Running trip total"
-                      value={formatCurrency(runningTripTotal)}
-                      highlight
-                    />
+                    <SummaryRow label="Selected stays" value={formatCurrency(selectedAccommodationCost)} />
+                    <SummaryRow label="Total" value={formatCurrency(runningTripTotal)} highlight />
                   </div>
+
+                  <Button
+                    as={Link}
+                    href="/summary"
+                    className="soft-pill-button w-full"
+                    isDisabled={nightGroups.length === 0 || selectedNightCount !== nightGroups.length}
+                  >
+                    Continue to Summary
+                  </Button>
                 </CardBody>
               )}
 
@@ -663,7 +365,7 @@ export default function AccommodationPage() {
                 <CardBody className="items-center gap-4 px-3 pb-5 pt-2">
                   <div className="soft-url-panel flex w-full flex-col items-center px-3 py-4 text-center">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                      Selected
+                      Nights
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">{selectedNightCount}</p>
                   </div>
@@ -706,18 +408,13 @@ function Stepper() {
             >
               {index + 1}
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Step
-              </p>
-              <p className="text-sm font-medium text-slate-900">
-                {route.step === "itinerary"
-                  ? "Itinerary"
-                  : route.step === "accommodation"
-                    ? "Stays"
-                    : "Summary"}
-              </p>
-            </div>
+            <p className="text-base font-medium text-slate-900">
+              {route.step === "itinerary"
+                ? "Itinerary"
+                : route.step === "accommodation"
+                  ? "Stays"
+                  : "Summary"}
+            </p>
           </div>
         );
       })}
@@ -725,42 +422,62 @@ function Stepper() {
   );
 }
 
-function StatusTile({ label, value }: { label: string; value: string }) {
+function StayCardSkeleton() {
   return (
-    <div className="soft-metric">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
-    </div>
-  );
-}
-
-function MiniMetaCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="soft-metric">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
-    </div>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-5">
-      <div className="flex items-center gap-3">
-        <CircularProgress aria-label="Loading stay options" color="primary" size="sm" />
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Searching this night now</p>
-          <p className="text-sm text-slate-500">
-            TinyFish-backed results for this section will appear as soon as they return.
-          </p>
+    <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm animate-pulse">
+      <div className="h-52 bg-slate-200" />
+      <div className="space-y-4 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3">
+            <div className="h-7 w-48 rounded-full bg-slate-200" />
+            <div className="h-4 w-56 rounded-full bg-slate-100" />
+            <div className="h-4 w-40 rounded-full bg-slate-100" />
+          </div>
+          <div className="h-20 w-28 rounded-[22px] bg-slate-100" />
         </div>
+        <div className="flex gap-2">
+          <div className="h-8 w-24 rounded-full bg-slate-100" />
+          <div className="h-8 w-28 rounded-full bg-slate-100" />
+        </div>
+        <div className="h-4 w-full rounded-full bg-slate-100" />
+        <div className="h-4 w-4/5 rounded-full bg-slate-100" />
+        <div className="flex gap-2">
+          <div className="h-8 w-20 rounded-full bg-slate-100" />
+          <div className="h-8 w-24 rounded-full bg-slate-100" />
+          <div className="h-8 w-16 rounded-full bg-slate-100" />
+        </div>
+        <div className="h-12 w-full rounded-full bg-slate-200" />
       </div>
     </div>
   );
 }
 
+function NightSkeleton() {
+  return (
+    <Card className="soft-panel">
+      <CardHeader className="px-6 pb-4 pt-6">
+        <div className="animate-pulse space-y-3">
+          <div className="h-8 w-56 rounded-full bg-slate-200" />
+          <div className="h-5 w-32 rounded-full bg-slate-100" />
+        </div>
+      </CardHeader>
+      <CardBody className="px-6 pb-6 pt-0">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[0, 1, 2].map((index) => (
+            <StayCardSkeleton key={`night-skeleton-card-${index}`} />
+          ))}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
 function Pill({ label }: { label: string }) {
-  return <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">{label}</div>;
+  return (
+    <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm">
+      {label}
+    </div>
+  );
 }
 
 function SummaryRow({
@@ -774,18 +491,10 @@ function SummaryRow({
 }) {
   return (
     <div className="soft-subpanel flex items-center justify-between gap-3 px-4 py-3">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`text-sm font-semibold ${highlight ? "text-blue-700" : "text-slate-900"}`}>
+      <p className="text-base text-slate-500">{label}</p>
+      <p className={`text-base font-semibold ${highlight ? "text-blue-700" : "text-slate-900"}`}>
         {value}
       </p>
-    </div>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
-      {message}
     </div>
   );
 }
