@@ -1,122 +1,46 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { runAgent, type AgentRunResponse } from "../lib/api";
+import Link from "next/link";
+import { travelFlowRoutes } from "../lib/trip-planner";
 
 export default function HomePage() {
-  const [goal, setGoal] = useState("");
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AgentRunResponse | null>(null);
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
-    try {
-      const response = await runAgent({
-        goal: goal.trim(),
-        url: url.trim() || undefined
-      });
-      setResult(response);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 p-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">AI Hackathon Starter</h1>
-        <p className="text-sm text-slate-300">
-          Enter a goal, optionally add a target URL, and run a minimal agent flow.
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 p-6">
+      <header className="space-y-3">
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-300">
+          Travel Planner
+        </p>
+        <h1 className="text-4xl font-semibold tracking-tight text-white">
+          Three-step trip planning flow
+        </h1>
+        <p className="max-w-2xl text-sm leading-6 text-slate-300">
+          Architecture is now set up for itinerary planning, accommodation selection, and final
+          summary/share. This step only establishes the route structure and shared travel data
+          models for later prompts.
         </p>
       </header>
 
-      <form
-        onSubmit={onSubmit}
-        className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4"
-      >
-        <div className="space-y-2">
-          <label className="text-sm text-slate-300" htmlFor="goal">
-            Goal
-          </label>
-          <textarea
-            id="goal"
-            className="min-h-28 w-full rounded-md border border-slate-700 bg-slate-950 p-3 text-sm outline-none ring-blue-500/50 focus:ring-2"
-            placeholder="Find the latest pricing tiers and key differences."
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            required
-          />
-        </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        {travelFlowRoutes.map((route, index) => (
+          <Link
+            key={route.step}
+            href={route.href}
+            className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 transition hover:border-blue-500"
+          >
+            <p className="text-sm font-medium text-blue-300">Step {index + 1}</p>
+            <h2 className="mt-3 text-xl font-semibold text-white">{route.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{route.description}</p>
+          </Link>
+        ))}
+      </section>
 
-        <div className="space-y-2">
-          <label className="text-sm text-slate-300" htmlFor="url">
-            Target URL (optional)
-          </label>
-          <input
-            id="url"
-            className="w-full rounded-md border border-slate-700 bg-slate-950 p-3 text-sm outline-none ring-blue-500/50 focus:ring-2"
-            placeholder="https://example.com"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-800"
-          disabled={loading || !goal.trim()}
-        >
-          {loading ? "Running..." : "Run Agent"}
-        </button>
-      </form>
-
-      {error && (
-        <section className="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-200">
-          {error}
-        </section>
-      )}
-
-      {result && (
-        <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-sm text-slate-300">
-            <span className="font-medium text-slate-100">Status:</span> {result.status}
-          </p>
-          <div>
-            <h2 className="mb-2 text-sm font-medium text-slate-200">Plan</h2>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">
-              {result.plan.map((step, index) => (
-                <li key={`${step}-${index}`}>{step}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h2 className="mb-2 text-sm font-medium text-slate-200">Summary</h2>
-            <p className="text-sm text-slate-300">{result.summary}</p>
-          </div>
-          <div>
-            <h2 className="mb-2 text-sm font-medium text-slate-200">Data</h2>
-            <pre className="overflow-x-auto rounded-md bg-slate-950 p-3 text-xs text-slate-200">
-              {JSON.stringify(result.data, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <h2 className="mb-2 text-sm font-medium text-slate-200">Sources</h2>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">
-              {result.sources.map((source) => (
-                <li key={source}>{source}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+        <h2 className="text-lg font-semibold text-white">Shared data foundation</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-300">
+          Trip, itinerary, expenses, accommodation options, selected stays, and final summary
+          structures are centralized in <code>frontend/lib/trip-planner.ts</code>.
+        </p>
+      </section>
     </main>
   );
 }
