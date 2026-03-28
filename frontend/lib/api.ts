@@ -96,18 +96,47 @@ export async function generateTravelPlan(userInput: string): Promise<TravelPlanR
     throw new Error("Enter a travel request before generating an itinerary.");
   }
 
-  try {
-    const parsedTrip = await parseTrip({ user_input: trimmedInput });
-    const itinerary = await generateItinerary({ parsed_trip: parsedTrip });
+  const optimisticParsedTrip = buildOptimisticParsedTrip(trimmedInput);
 
-    return {
-      source: "backend",
-      parsedTrip,
-      itinerary
-    };
+  try {
+    const [parsedTrip, optimisticItinerary] = await Promise.all([
+      parseTrip({ user_input: trimmedInput }).catch(() => null),
+      generateItinerary({ parsed_trip: optimisticParsedTrip }).catch(() => null)
+    ]);
+
+    if (parsedTrip && optimisticItinerary) {
+      return {
+        source: "backend",
+        parsedTrip,
+        itinerary: optimisticItinerary
+      };
+    }
+
+    if (parsedTrip) {
+      const itinerary = await generateItinerary({ parsed_trip: parsedTrip });
+      return {
+        source: "backend",
+        parsedTrip,
+        itinerary
+      };
+    }
+
+    if (optimisticItinerary) {
+      return {
+        source: "backend",
+        parsedTrip: optimisticParsedTrip,
+        itinerary: optimisticItinerary
+      };
+    }
+
+    throw new Error("Trip parser and itinerary requests both failed.");
   } catch {
     return createMockTravelPlan(trimmedInput);
   }
+}
+
+function buildOptimisticParsedTrip(userInput: string): ParsedTripData {
+  return createMockTravelPlan(userInput).parsedTrip;
 }
 
 export async function refineTravelPlan(
