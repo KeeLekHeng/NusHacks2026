@@ -541,9 +541,7 @@ function getOptionImage(
   groupIndex: number,
   optionIndex: number
 ) {
-  const platformBias = option.platform?.toLowerCase().includes("trip") ? 1 : 0;
-  const cityBias = group.city.toLowerCase().includes("da lat") ? 2 : 0;
-  const imageIndex = (groupIndex * 2 + optionIndex + platformBias + cityBias) % optionImages.length;
+  const imageIndex = (groupIndex * 3 + optionIndex) % optionImages.length;
   return optionImages[imageIndex];
 }
 

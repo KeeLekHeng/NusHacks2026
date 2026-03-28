@@ -26,7 +26,7 @@ def _poll_tinyfish_run(
     run_id: str,
     headers: dict[str, str],
     base_url: str,
-    timeout_seconds: int = 300,
+    timeout_seconds: int = 20,
     poll_interval_seconds: float = 1.0,
 ) -> dict[str, Any] | None:
     endpoint_candidates = [
