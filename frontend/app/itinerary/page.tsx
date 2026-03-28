@@ -182,19 +182,11 @@ export default function ItineraryPage() {
           </div>
         </header>
 
-        {(error || (result?.source === "mock" && !error)) && (
+        {error && (
           <div className="shrink-0 space-y-3">
-            {error && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-base text-rose-700">
-                {error}
-              </div>
-            )}
-            {result?.source === "mock" && !error && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base text-amber-700">
-                Backend endpoints were unavailable, so the planner is using the same UI with mock
-                data.
-              </div>
-            )}
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-base text-rose-700">
+              {error}
+            </div>
           </div>
         )}
 

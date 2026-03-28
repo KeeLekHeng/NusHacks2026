@@ -51,11 +51,7 @@ export default function SummaryPage() {
 
     setTravelPlan(nextPlan);
     setAccommodationSelections(storedSelections);
-    setPageNotice(
-      storedPlan
-        ? null
-        : "No saved itinerary was found, so this summary is using the demo travel plan shell."
-    );
+    setPageNotice(null);
   }, []);
 
   const selectedStays = useMemo(
