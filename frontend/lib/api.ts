@@ -65,6 +65,7 @@ export type PrepareAccommodationTasksResponse = {
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const ACCOMMODATION_SEARCH_TIMEOUT_MS = 20_000;
 
 export const DEMO_TRIP_PROMPT =
   "I want to go to Ho Chi Minh + Da Lat for 4 days 3 nights. I definitely won't miss The Cafe Apartments in Ho Chi Minh City and budget within 1000 dollars.";
@@ -186,12 +187,18 @@ export async function searchAccommodationForNight(
   task: AccommodationSearchTask
 ): Promise<AccommodationSearchResult> {
   try {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), ACCOMMODATION_SEARCH_TIMEOUT_MS);
+
     const response = await fetch(`${API_BASE_URL}/trip/accommodation-search`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(task)
+      body: JSON.stringify(task),
+      signal: controller.signal
+    }).finally(() => {
+      window.clearTimeout(timeoutId);
     });
 
     if (!response.ok) {
