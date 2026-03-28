@@ -88,6 +88,10 @@ export default function SummaryPage() {
     () => travelPlan?.parsedTrip.destinations.join(" -> ") ?? "Trip route",
     [travelPlan]
   );
+  const groupedDailyCosts = useMemo(
+    () => buildGroupedDailyCosts(itineraryExpenses, selectedStays),
+    [itineraryExpenses, selectedStays]
+  );
   const shareText = useMemo(
     () => buildShareText(travelPlan, selectedStays, totalEstimatedCost),
     [travelPlan, selectedStays, totalEstimatedCost]
@@ -360,6 +364,36 @@ export default function SummaryPage() {
                   <CostRow label="Stays" value={formatCurrency(selectedStayCost)} />
                 </div>
 
+                <div className="soft-subpanel px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Day-by-Day Costs
+                  </p>
+                  <div className="mt-4 space-y-4">
+                    {groupedDailyCosts.map((day) => (
+                      <div key={`cost-day-${day.dayNumber}`} className="rounded-[20px] border border-white bg-white px-4 py-4 shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Day {day.dayNumber}</p>
+                            <p className="text-xs text-slate-500">{day.city}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {formatCurrency(day.total)}
+                          </p>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {day.items.map((item, index) => (
+                            <ExpenseListRow
+                              key={`day-${day.dayNumber}-${item.label}-${index}`}
+                              label={item.label}
+                              value={formatCurrency(item.amount)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button as={Link} href="/itinerary" className="soft-pill-button-secondary">
                     Edit Itinerary
@@ -428,6 +462,51 @@ function CostRow({ label, value }: { label: string; value: string }) {
       <p className="text-base font-semibold text-slate-900">{value}</p>
     </div>
   );
+}
+
+function ExpenseListRow({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-[16px] bg-slate-50 px-3 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-slate-900">{label}</p>
+      </div>
+      <p className="shrink-0 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function buildGroupedDailyCosts(expenses: GeneratedExpenseDay[], stays: SummaryStay[]) {
+  return expenses.map((group) => {
+    const itineraryItems = group.items
+      .filter((item) => item.category !== "hotel")
+      .map((item) => ({
+        label: item.label,
+        amount: item.estimated_cost
+      }));
+
+    const stayItems = stays
+      .filter((stay) => stay.dayNumber === group.day_number)
+      .map((stay) => ({
+        label: stay.property.property_name ?? stay.nightLabel,
+        amount: stay.property.nightly_price ?? stay.property.total_price ?? 0
+      }));
+
+    const items = [...itineraryItems, ...stayItems];
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+
+    return {
+      dayNumber: group.day_number,
+      city: group.city,
+      items,
+      total
+    };
+  });
 }
 
 function buildSummaryStays(
