@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 from app.schemas.trip_itinerary import BudgetSummary, ItineraryDay
+from app.schemas.trip_itinerary import TripItineraryResponse
 from app.schemas.trip_parser import TripParserResponse
 
 
@@ -37,3 +38,9 @@ class AccommodationSearchTask(BaseModel):
 
 class AccommodationPreparationResponse(BaseModel):
     accommodation_search_tasks: list[AccommodationSearchTask]
+
+
+class AccommodationPreparationFromItineraryRequest(BaseModel):
+    parsed_trip: TripParserResponse
+    itinerary: TripItineraryResponse
+    previous_selected_accommodations: list[PreviousSelectedAccommodation] = []

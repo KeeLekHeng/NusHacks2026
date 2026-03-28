@@ -1,11 +1,57 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import json
+import re
+import time
 from typing import Any
 
 import httpx
 
 from app.services.prompt_templates import build_accommodation_search_tinyfish_prompt
+
+
+def _tinyfish_has_usable_result(payload: dict[str, Any]) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    return bool(_find_candidate_item_lists(payload) or _find_json_objects(payload))
+
+
+def _tinyfish_is_terminal_status(status: str | None) -> bool:
+    return (status or "").upper() in {"COMPLETED", "FAILED", "CANCELLED", "ERROR"}
+
+
+def _poll_tinyfish_run(
+    client: httpx.Client,
+    run_id: str,
+    headers: dict[str, str],
+    base_url: str,
+    timeout_seconds: int = 300,
+    poll_interval_seconds: float = 1.0,
+) -> dict[str, Any] | None:
+    endpoint_candidates = [
+        f"{base_url.rstrip('/')}/v1/automation/runs/{run_id}",
+        f"{base_url.rstrip('/')}/v1/automation/run/{run_id}",
+    ]
+    deadline = time.monotonic() + timeout_seconds
+    latest_payload: dict[str, Any] | None = None
+
+    while time.monotonic() < deadline:
+        for endpoint in endpoint_candidates:
+            try:
+                response = client.get(endpoint, headers=headers)
+                response.raise_for_status()
+                payload = response.json()
+                latest_payload = payload
+                if _tinyfish_has_usable_result(payload):
+                    return payload
+                if _tinyfish_is_terminal_status(payload.get("status")):
+                    return payload
+            except Exception:
+                continue
+        time.sleep(poll_interval_seconds)
+
+    return latest_payload
 
 
 def run_tinyfish(goal: str, url: str | None, api_key: str | None, base_url: str) -> dict[str, Any]:
@@ -35,7 +81,23 @@ def run_tinyfish(goal: str, url: str | None, api_key: str | None, base_url: str)
     with httpx.Client(timeout=60) as client:
         response = client.post(endpoint, json=payload, headers=headers)
         response.raise_for_status()
-        return response.json()
+        initial_payload = response.json()
+
+        if _tinyfish_has_usable_result(initial_payload):
+            return initial_payload
+
+        run_id = initial_payload.get("run_id")
+        if isinstance(run_id, str) and run_id.strip():
+            polled_payload = _poll_tinyfish_run(
+                client=client,
+                run_id=run_id,
+                headers=headers,
+                base_url=base_url,
+            )
+            if polled_payload is not None:
+                return polled_payload
+
+        return initial_payload
 
 
 def search_accommodations_with_tinyfish(
@@ -51,7 +113,6 @@ def search_accommodations_with_tinyfish(
         }
 
     platform_targets = [
-        ("Airbnb", "https://www.airbnb.com"),
         ("Trip.com", "https://www.trip.com/hotels/"),
     ]
 
@@ -62,17 +123,40 @@ def search_accommodations_with_tinyfish(
         goal = build_accommodation_search_tinyfish_prompt(
             {**search_request, "preferred_platform": platform}
         )
-        response = run_tinyfish(goal=goal, url=url, api_key=api_key, base_url=base_url)
+        try:
+            response = run_tinyfish(goal=goal, url=url, api_key=api_key, base_url=base_url)
+        except Exception as exc:
+            print("[tinyfish][accommodation_search][platform_error]", platform, repr(exc))
+            continue
+
+        print(
+            "[tinyfish][accommodation_search][platform_response]",
+            platform,
+            _describe_payload_shape(response),
+        )
         extracted_reuse_option = _normalize_tinyfish_reuse_option(response, platform)
         if reuse_option is None and extracted_reuse_option is not None:
             reuse_option = extracted_reuse_option
-        normalized_options.extend(_normalize_tinyfish_accommodation_results(response, platform))
+        platform_options = _normalize_tinyfish_accommodation_results(response, platform)
+        print(
+            "[tinyfish][accommodation_search][platform_normalized_count]",
+            platform,
+            len(platform_options),
+        )
+        normalized_options.extend(platform_options)
 
     unique_options = _dedupe_accommodation_options(normalized_options)
+    if not unique_options:
+        return {
+            "mode": "fallback",
+            "reuse_option": reuse_option or _build_mock_reuse_option(search_request),
+            "results": _build_mock_accommodation_options(search_request)[:3],
+        }
+
     return {
         "mode": "live",
         "reuse_option": reuse_option,
-        "results": unique_options[:9],
+        "results": unique_options[:3],
     }
 
 
@@ -81,6 +165,9 @@ def _normalize_tinyfish_accommodation_results(
     platform: str,
 ) -> list[dict[str, Any]]:
     candidate_items = _find_candidate_item_lists(response)
+    if not candidate_items:
+        for payload in _find_json_objects(response):
+            candidate_items.extend(_find_candidate_item_lists(payload))
     normalized: list[dict[str, Any]] = []
 
     for item in candidate_items:
@@ -147,6 +234,14 @@ def _normalize_tinyfish_reuse_option(
             raw_reuse = result.get("reuse_option")
 
     if not isinstance(raw_reuse, dict):
+        for payload in _find_json_objects(response):
+            if isinstance(payload, dict):
+                nested_reuse = payload.get("reuse_option")
+                if isinstance(nested_reuse, dict):
+                    raw_reuse = nested_reuse
+                    break
+
+    if not isinstance(raw_reuse, dict):
         return None
 
     return {
@@ -163,8 +258,17 @@ def _find_candidate_item_lists(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, dict)]
 
+    if isinstance(payload, str):
+        discovered: list[dict[str, Any]] = []
+        for parsed in _extract_json_payloads_from_text(payload):
+            discovered.extend(_find_candidate_item_lists(parsed))
+        return discovered
+
     if not isinstance(payload, dict):
         return []
+
+    if _looks_like_listing(payload):
+        return [payload]
 
     common_keys = ["items", "results", "listings", "properties", "data", "result"]
     for key in common_keys:
@@ -175,6 +279,10 @@ def _find_candidate_item_lists(payload: Any) -> list[dict[str, Any]]:
             nested = _find_candidate_item_lists(value)
             if nested:
                 return nested
+        if isinstance(value, str):
+            nested = _find_candidate_item_lists(value)
+            if nested:
+                return nested
 
     discovered: list[dict[str, Any]] = []
     for value in payload.values():
@@ -182,8 +290,85 @@ def _find_candidate_item_lists(payload: Any) -> list[dict[str, Any]]:
             discovered.extend(_find_candidate_item_lists(value))
         elif isinstance(value, list):
             discovered.extend(item for item in value if isinstance(item, dict))
+        elif isinstance(value, str):
+            discovered.extend(_find_candidate_item_lists(value))
 
     return discovered
+
+
+def _find_json_objects(payload: Any) -> list[dict[str, Any]]:
+    discovered: list[dict[str, Any]] = []
+    if isinstance(payload, dict):
+        discovered.append(payload)
+        for value in payload.values():
+            discovered.extend(_find_json_objects(value))
+    elif isinstance(payload, list):
+        for item in payload:
+            discovered.extend(_find_json_objects(item))
+    elif isinstance(payload, str):
+        for parsed in _extract_json_payloads_from_text(payload):
+            discovered.extend(_find_json_objects(parsed))
+    return discovered
+
+
+def _extract_json_payloads_from_text(text: str) -> list[Any]:
+    stripped = text.strip()
+    if not stripped:
+        return []
+
+    candidates: list[str] = []
+    fenced_match = re.search(r"```(?:json)?\s*(.*?)```", stripped, re.DOTALL | re.IGNORECASE)
+    if fenced_match:
+        candidates.append(fenced_match.group(1).strip())
+
+    for start_char, end_char in [("{", "}"), ("[", "]")]:
+        start_index = stripped.find(start_char)
+        end_index = stripped.rfind(end_char)
+        if start_index != -1 and end_index != -1 and end_index > start_index:
+            candidates.append(stripped[start_index : end_index + 1])
+
+    candidates.append(stripped)
+
+    parsed_payloads: list[Any] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            parsed_payloads.append(json.loads(candidate))
+        except Exception:
+            continue
+    return parsed_payloads
+
+
+def _looks_like_listing(item: dict[str, Any]) -> bool:
+    indicative_keys = {
+        "property_name",
+        "hotel_name",
+        "listing_name",
+        "name",
+        "title",
+        "booking_url",
+        "final_page_before_checkout_url",
+        "url",
+        "link",
+        "price",
+        "nightly_price",
+        "price_per_night",
+    }
+    return any(key in item for key in indicative_keys)
+
+
+def _describe_payload_shape(payload: Any) -> str:
+    if isinstance(payload, dict):
+        keys = sorted(str(key) for key in payload.keys())
+        return f"dict(keys={keys[:12]})"
+    if isinstance(payload, list):
+        return f"list(len={len(payload)})"
+    if isinstance(payload, str):
+        return f"str(len={len(payload)})"
+    return type(payload).__name__
 
 
 def _dedupe_accommodation_options(options: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:

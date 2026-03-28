@@ -5,6 +5,53 @@ from typing import Any
 from openai import OpenAI
 
 
+def _extract_json_payload(text: str) -> dict[str, Any]:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if not match:
+        raise ValueError(f"Model response did not contain JSON. Raw response: {text[:500]}")
+
+    parsed = json.loads(match.group())
+    if not isinstance(parsed, dict):
+        raise ValueError("Model response JSON was not an object.")
+    return parsed
+
+
+def _normalize_trip_itinerary_result_shape(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    normalized.setdefault("trip_summary", "")
+    normalized.setdefault("itinerary_days", [])
+    normalized.setdefault("estimated_expenses", [])
+    normalized.setdefault("budget_summary", {})
+    return normalized
+
+
+def _normalize_trip_itinerary_refinement_shape(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    normalized.setdefault("updated_itinerary_days", [])
+    normalized.setdefault("updated_estimated_expenses", [])
+    normalized.setdefault("updated_budget_summary", {})
+    normalized.setdefault("explanation_summary", None)
+    return normalized
+
+
+def _normalize_accommodation_prep_shape(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    normalized.setdefault("accommodation_search_tasks", [])
+    return normalized
+
+
 def plan_goal(goal: str, api_key: str | None, model: str) -> list[str]:
     if not api_key:
         return [
@@ -68,7 +115,7 @@ def parse_trip_request(user_input: str, api_key: str | None, model: str) -> dict
     text = getattr(response, "output_text", "") or ""
 
     try:
-        parsed = json.loads(text)
+        parsed = _extract_json_payload(text)
         return _normalize_trip_parser_result(parsed)
     except Exception:
         return heuristic_result
@@ -102,7 +149,7 @@ def generate_trip_itinerary(parsed_trip: dict[str, Any], api_key: str | None, mo
     text = getattr(response, "output_text", "") or ""
 
     try:
-        parsed = json.loads(text)
+        parsed = _normalize_trip_itinerary_result_shape(_extract_json_payload(text))
         return _normalize_trip_itinerary_result(parsed, parsed_trip)
     except Exception:
         return heuristic_result
@@ -149,7 +196,7 @@ def refine_trip_itinerary(
     text = getattr(response, "output_text", "") or ""
 
     try:
-        parsed = json.loads(text)
+        parsed = _normalize_trip_itinerary_refinement_shape(_extract_json_payload(text))
         return _normalize_trip_itinerary_refinement_result(parsed, parsed_trip, itinerary_days)
     except Exception:
         return heuristic_result
@@ -194,7 +241,7 @@ def prepare_accommodation_search_tasks(
     text = getattr(response, "output_text", "") or ""
 
     try:
-        parsed = json.loads(text)
+        parsed = _normalize_accommodation_prep_shape(_extract_json_payload(text))
         return _normalize_accommodation_search_tasks_result(
             raw_result=parsed,
             parsed_trip=parsed_trip,
@@ -707,6 +754,8 @@ def _extract_destinations(user_input: str, must_visit: list[str]) -> list[str]:
         working_text = working_text.replace(place, "")
 
     destination_patterns = [
+        r"(?:from)\s+[A-Za-z\s]+?\s+to\s+(.+?)(?:\s+for\s+\d+\s*days?|\s+within\s+\$?\d+|\s+with\s+|\s+budget|\s*\.\s*|[.,]|$)",
+        r"(?:to)\s+(.+?)(?:\s+for\s+\d+\s*days?|\s+within\s+\$?\d+|\s+with\s+|\s+budget|\s*\.\s*|[.,]|$)",
         r"(?:go to|visit|travel to)\s+(.+?)(?:\s+for\s+\d+\s*days?|\s+within\s+\$?\d+|[.,]|$)",
         r"(?:trip to)\s+(.+?)(?:\s+for\s+\d+\s*days?|\s+within\s+\$?\d+|[.,]|$)",
     ]
@@ -717,7 +766,13 @@ def _extract_destinations(user_input: str, must_visit: list[str]) -> list[str]:
             chunk = match.group(1)
             parts = re.split(r"\s*\+\s*|\s*,\s*|\s+and\s+", chunk)
             for part in parts:
-                normalized = _normalize_destination_name(part.strip(" ."))
+                cleaned_part = re.sub(
+                    r"\b(?:for|with|within|budget|under|hotel|hotels|hostel|hostels)\b.*$",
+                    "",
+                    part,
+                    flags=re.IGNORECASE,
+                ).strip(" .")
+                normalized = _normalize_destination_name(cleaned_part)
                 if normalized and normalized not in candidates:
                     candidates.append(normalized)
 
@@ -793,6 +848,9 @@ def _normalize_trip_parser_result(raw_result: dict[str, Any]) -> dict[str, Any]:
         "extra_preferences": list(dict.fromkeys(extra_preferences)),
         "missing_fields": [],
     }
+
+    if result["duration_days"] is not None and result["duration_nights"] is None and result["duration_days"] > 0:
+        result["duration_nights"] = max(result["duration_days"] - 1, 0)
 
     missing_fields = []
     for field_name in [

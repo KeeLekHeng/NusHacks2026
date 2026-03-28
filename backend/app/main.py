@@ -8,6 +8,7 @@ from app.api.routes.trip_accommodation_ranking import router as trip_accommodati
 from app.api.routes.trip_accommodation_search import router as trip_accommodation_search_router
 from app.api.routes.trip_itinerary import router as trip_itinerary_router
 from app.api.routes.trip_itinerary_refinement import router as trip_itinerary_refinement_router
+from app.api.routes.trip_plan import router as trip_plan_router
 from app.api.routes.trip_parser import router as trip_parser_router
 from app.config import get_settings
 
@@ -27,6 +28,7 @@ app.include_router(agent_router)
 app.include_router(trip_parser_router)
 app.include_router(trip_itinerary_router)
 app.include_router(trip_itinerary_refinement_router)
+app.include_router(trip_plan_router)
 app.include_router(trip_accommodation_prep_router)
 app.include_router(trip_accommodation_ranking_router)
 app.include_router(trip_accommodation_search_router)
