@@ -190,11 +190,11 @@ export default function ItineraryPage() {
           </div>
         )}
 
-        <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+  <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,8fr)_minmax(260px,2fr)]">
           <section className="grid min-h-0 gap-5 xl:grid-rows-[minmax(0,1fr)_auto]">
             <Card
               className={`soft-panel overflow-hidden ${
-                itineraryDays.length > 0 ? "min-h-0 xl:h-[min(56vh,640px)]" : ""
+                itineraryDays.length > 0 ? "min-h-0 xl:h-[min(68vh,780px)]" : ""
               }`}
             >
               <CardHeader className="flex shrink-0 items-center justify-between gap-4 px-6 pb-4 pt-6">
