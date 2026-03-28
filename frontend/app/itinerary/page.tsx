@@ -155,7 +155,7 @@ export default function ItineraryPage() {
 
   return (
     <main className="h-screen overflow-hidden bg-[#f4f7fb]">
-      <div className="mx-auto flex h-full max-w-[1600px] flex-col gap-5 px-4 py-5 md:px-6 xl:px-8">
+      <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-5 px-4 py-5 md:px-6 xl:px-8 2xl:max-w-[1920px]">
         <header className="soft-panel flex shrink-0 flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">
@@ -192,7 +192,7 @@ export default function ItineraryPage() {
           <section className="grid min-h-0 gap-5 xl:grid-rows-[minmax(0,1fr)_auto]">
             <Card
               className={`soft-panel overflow-hidden ${
-                itineraryDays.length > 0 ? "min-h-0 xl:h-[min(42vh,460px)]" : ""
+                itineraryDays.length > 0 ? "min-h-0 xl:h-[min(56vh,640px)]" : ""
               }`}
             >
               <CardHeader className="flex shrink-0 items-center justify-between gap-4 px-6 pb-4 pt-6">
@@ -223,7 +223,7 @@ export default function ItineraryPage() {
                   </div>
                 ) : (
                   <div
-                    className={`overflow-y-auto pr-1 transition duration-300 xl:h-full ${
+                    className={`overflow-y-auto pr-2 transition duration-300 xl:h-full ${
                       isPlanning ? "opacity-20 blur-[1px]" : "opacity-100"
                     }`}
                   >
